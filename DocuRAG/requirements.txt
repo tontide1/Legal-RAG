@@ -1,0 +1,16 @@
+streamlit
+pandas
+numpy
+chroma
+openai
+requests
+PyPDF2
+python-docx
+jsonschema
+matplotlib
+networkx
+scikit-learn
+torch
+transformers
+ollama
+```
