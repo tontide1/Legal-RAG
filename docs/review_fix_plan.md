@@ -33,3 +33,8 @@ Tài liệu này tổng hợp các lỗi đã được review, mức độ ưu t
 
 ## Ghi chú môi trường
 Lần sửa này vẫn phụ thuộc vào việc environment `RAG` có đủ package như `python-dotenv`, `torch`, `neo4j`, `sentence-transformers`, `langchain-google-genai`.
+
+## Cấu hình Gemini
+- Thêm biến môi trường `GEMINI_MODEL`
+- Giá trị mặc định hiện tại: `gemini-2.5-flash-lite`
+- Có thể override trong `.env` nếu cần đổi model mà không sửa source
