@@ -1,26 +1,57 @@
 import json
+from pathlib import Path
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader, random_split
-from pathlib import Path
+from torch.utils.data import DataLoader, Dataset, random_split
 
 PROJECT_ROOT = Path(__file__).parent.parent
 
-with open(PROJECT_ROOT / "NER" / "ner_data_8000.json", "r", encoding="utf-8") as f:
-    examples = json.load(f)
 
-token_set = set()
-for ex in examples:
-    token_set.update(ex["tokens"])
+def _ner_dataset_path() -> Path:
+    return PROJECT_ROOT / "NER" / "ner_data_8000.json"
 
-token2id = {"<PAD>": 0, "<UNK>": 1}
-for token in sorted(token_set):
-    token2id[token] = len(token2id)
-id2token = {v: k for k, v in token2id.items()}
 
+_EXAMPLES = None
+_TOKEN2ID = None
+_ID2TOKEN = None
+
+token2id = {}
+id2token = {}
 label2id = {"O": 0, "B-ARTICLE": 1, "I-ARTICLE": 2}
 id2label = {v: k for k, v in label2id.items()}
+
+
+def load_examples():
+    global _EXAMPLES
+    if _EXAMPLES is None:
+        with open(_ner_dataset_path(), "r", encoding="utf-8") as file:
+            _EXAMPLES = json.load(file)
+    return _EXAMPLES
+
+
+def get_token_mappings():
+    global _TOKEN2ID
+    global _ID2TOKEN
+    global token2id
+    global id2token
+
+    if _TOKEN2ID is None or _ID2TOKEN is None:
+        examples = load_examples()
+        token_set = set()
+        for ex in examples:
+            token_set.update(ex["tokens"])
+
+        _TOKEN2ID = {"<PAD>": 0, "<UNK>": 1}
+        for token in sorted(token_set):
+            _TOKEN2ID[token] = len(_TOKEN2ID)
+
+        _ID2TOKEN = {v: k for k, v in _TOKEN2ID.items()}
+        token2id = _TOKEN2ID
+        id2token = _ID2TOKEN
+
+    return _TOKEN2ID, _ID2TOKEN
 
 class NERDataset(Dataset):
     def __init__(self, examples, token2id, label2id):
@@ -80,10 +111,11 @@ num_layers = 2
 num_labels = len(label2id)
 
 def load_model(model_path="bilstm_ner.pt", device=None):
+    token2id_map, _ = get_token_mappings()
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = BiLSTM_NER(
-        vocab_size=len(token2id),
+        vocab_size=len(token2id_map),
         embedding_dim=embedding_dim,
         hidden_dim=hidden_dim,
         num_layers=num_layers,
@@ -94,11 +126,13 @@ def load_model(model_path="bilstm_ner.pt", device=None):
     model.eval()
     return model
 
-def predict(query, model, token2id=token2id, device=None):
+def predict(query, model, token2id_map=None, device=None):
+    if token2id_map is None:
+        token2id_map, _ = get_token_mappings()
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     query_tokens = query.split()
-    query_token_ids = [token2id.get(tok, token2id["<UNK>"]) for tok in query_tokens]
+    query_token_ids = [token2id_map.get(tok, token2id_map["<UNK>"]) for tok in query_tokens]
     query_tensor = torch.tensor(query_token_ids, dtype=torch.long).unsqueeze(0).to(device)
     with torch.no_grad():
         logits = model(query_tensor)  # (1, seq_len, num_labels)
@@ -137,6 +171,9 @@ def infer(query, model_path="bilstm_ner.pt", device=None):
     return tokens, predictions, entities
 
 if __name__ == '__main__':
+    examples = load_examples()
+    token2id_map, _ = get_token_mappings()
+
     full_dataset = NERDataset(examples, token2id, label2id)
     train_size = int(0.8 * len(full_dataset))
     test_size = len(full_dataset) - train_size
@@ -152,7 +189,7 @@ if __name__ == '__main__':
     learning_rate = 0.0001
     num_epochs = 10
 
-    model = BiLSTM_NER(len(token2id), embedding_dim, hidden_dim, num_layers, num_labels, dropout=0.1).to(device)
+    model = BiLSTM_NER(len(token2id_map), embedding_dim, hidden_dim, num_layers, num_labels, dropout=0.1).to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     criterion = nn.CrossEntropyLoss(ignore_index=-100)
 

@@ -86,6 +86,8 @@ class Retrive:
         return entities
 
     def create_bm25_model(self, entities):
+        if not entities:
+            return None
         texts = [build_text_payload(e["name"], e["value"]) for e in entities]
         tokenized_texts = [text.split() for text in texts]
         return BM25Okapi(tokenized_texts)
@@ -109,6 +111,9 @@ class Retrive:
         return [(s - min_s) / (max_s - min_s) for s in scores]
 
     def combined_search(self, bm25_query, vector_query):
+        if not self.entities or self.bm25_model is None:
+            return []
+
         tokenized = bm25_query.split()
         bm25_scores = self.bm25_model.get_scores(tokenized)
         query_embedding = self.create_embeddings([vector_query])[0]
@@ -157,6 +162,9 @@ class Retrive:
 
     def advanced_retrieve(self, query_text, ner_entities):
         print(f"\nXử lý truy vấn: '{query_text}'")
+        if not self.entities:
+            return []
+
         if not ner_entities:
             cands = self.combined_search(query_text, query_text)
             final_top = self.iterative_rerank(cands)
