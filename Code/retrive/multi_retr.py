@@ -1,12 +1,21 @@
 import numpy as np
+import os
+import sys
+from pathlib import Path
+
 import torch
+from dotenv import load_dotenv
+from neo4j import GraphDatabase
 from rank_bm25 import BM25Okapi
 from sentence_transformers import SentenceTransformer
-from neo4j import GraphDatabase
-import os
-from dotenv import load_dotenv
 
 load_dotenv()
+
+CODE_ROOT = Path(__file__).resolve().parents[1]
+if str(CODE_ROOT) not in sys.path:
+    sys.path.insert(0, str(CODE_ROOT))
+
+from pipeline_utils import build_text_payload
 
 class Retrive:
     def __init__(self, 
@@ -14,6 +23,7 @@ class Retrive:
                  neo4j_user=None, 
                  neo4j_password=None,
                  top_k=5,
+                 candidate_pool_size=30,
                  lambda_val=0.5,
                  num_iterations=1,
                  device=None):
@@ -34,6 +44,7 @@ class Retrive:
         self.model.to(self.device)
         
         self.top_k = top_k
+        self.candidate_pool_size = max(candidate_pool_size, top_k)
         self.lambda_val = lambda_val
         self.num_iterations = num_iterations
         
@@ -48,14 +59,16 @@ class Retrive:
     
     def get_entities_from_neo4j(self, session):
         query = """
-        MATCH (n)
+        MATCH (n:LegalRAG)
         WHERE n.ten IS NOT NULL
           AND n.embedding IS NOT NULL AND n.graph_embedding IS NOT NULL
-        RETURN n.ten AS name, n.Value AS value, n.embedding AS embedding, n.graph_embedding AS graph_embedding, n.Label AS label
+        RETURN n.node_id AS node_id, n.ten AS name, coalesce(n.Value, '') AS value,
+               n.embedding AS embedding, n.graph_embedding AS graph_embedding, n.Label AS label
         """
         result = session.run(query)
         entities = []
         for record in result:
+            node_id = record["node_id"]
             name = record["name"]
             value = record["value"]
             content_emb = record["embedding"]
@@ -63,6 +76,7 @@ class Retrive:
             label = record["label"]
             if content_emb is not None and graph_emb is not None:
                 entities.append({
+                    "node_id": node_id,
                     "name": name,
                     "value": value,
                     "content_embedding": np.array(content_emb),
@@ -72,7 +86,7 @@ class Retrive:
         return entities
 
     def create_bm25_model(self, entities):
-        texts = [f"{e['name']} {e['value']}" for e in entities]
+        texts = [build_text_payload(e["name"], e["value"]) for e in entities]
         tokenized_texts = [text.split() for text in texts]
         return BM25Okapi(tokenized_texts)
 
@@ -107,6 +121,7 @@ class Retrive:
         for i, e in enumerate(self.entities):
             combined_score = bm25_norm[i] + cosine_norm[i]
             item = {
+                "node_id": e["node_id"],
                 "name": e["name"],
                 "value": e["value"],
                 "label": e["label"],  
@@ -118,7 +133,7 @@ class Retrive:
             }
             results.append(item)
         results.sort(key=lambda x: x["combined_score"], reverse=True)
-        return results[:self.top_k]
+        return results[:self.candidate_pool_size]
 
     def iterative_rerank(self, candidates):
         if not candidates:
@@ -149,25 +164,34 @@ class Retrive:
 
         all_candidates = {}
         for e in ner_entities:
-            partial_top5 = self.combined_search(e, query_text)
-            for item in partial_top5:
-                key = item["name"]
+            partial_results = self.combined_search(e, query_text)
+            for item in partial_results:
+                key = item["node_id"]
                 if key not in all_candidates or item["combined_score"] > all_candidates[key]["combined_score"]:
                     all_candidates[key] = item
         merged_candidates = list(all_candidates.values())
         final_top = self.iterative_rerank(merged_candidates)
         return final_top
 
+    def close(self):
+        self.driver.close()
+
 def retrieve_entity(query_text, ner_entities=None):
     retriever = Retrive()
-    results = retriever.advanced_retrieve(query_text, ner_entities)
-    
-    print(f"\nKết quả xếp hạng cuối cùng (Top {retriever.top_k}):")
-    for idx, entity in enumerate(results, 1):
-        print(f"{idx}. Node: {entity['name']} -- BM25 Score: {entity['bm25']:.4f}, "
-              f"Cosine Score: {entity['cosine']:.4f}, Graph Sum: {entity['graph_sum']:.4f}, "
-              f"Final Score: {entity['final_score']:.4f}")
-    print('Nội dung truy vấn cuối cùng:')
-    for idx, entity in enumerate(results, 1):
-        print(f"{idx}. {entity['name']} - {entity['value']} (Label: {entity['label']}) - (Score: {entity['final_score']:.4f})")
-    return results
+    try:
+        results = retriever.advanced_retrieve(query_text, ner_entities)
+        
+        print(f"\nKết quả xếp hạng cuối cùng (Top {retriever.top_k}):")
+        for idx, entity in enumerate(results, 1):
+            print(f"{idx}. Node: {entity['name']} -- BM25 Score: {entity['bm25']:.4f}, "
+                  f"Cosine Score: {entity['cosine']:.4f}, Graph Sum: {entity.get('graph_sum', 0.0):.4f}, "
+                  f"Final Score: {entity.get('final_score', entity['combined_score']):.4f}")
+        print("Nội dung truy vấn cuối cùng:")
+        for idx, entity in enumerate(results, 1):
+            print(
+                f"{idx}. {entity['name']} - {entity['value']} "
+                f"(Label: {entity['label']}) - (Score: {entity.get('final_score', entity['combined_score']):.4f})"
+            )
+        return results
+    finally:
+        retriever.close()

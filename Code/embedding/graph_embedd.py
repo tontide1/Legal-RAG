@@ -101,18 +101,21 @@ class Decoder(nn.Module):
 
 def delete_old_graph_embeddings(session):
     query = """
-    MATCH (n)
+    MATCH (n:LegalRAG)
     REMOVE n.graph_embedding
     """
     session.run(query)
     print("Đã xóa các giá trị graph_embedding cũ trong Neo4j")
 
 def get_graph_data_from_neo4j(session):
-    query_nodes = "MATCH (n) RETURN n.ten AS name"
+    query_nodes = "MATCH (n:LegalRAG) RETURN n.node_id AS node_id"
     result = session.run(query_nodes)
-    nodes = [record["name"] for record in result]
+    nodes = [record["node_id"] for record in result]
     
-    query_edges = "MATCH (n)-[r]->(m) RETURN n.ten AS source, m.ten AS target"
+    query_edges = """
+    MATCH (n:LegalRAG)-[r]->(m:LegalRAG)
+    RETURN n.node_id AS source, m.node_id AS target
+    """
     result = session.run(query_edges)
     edges = [(record["source"], record["target"]) for record in result]
     return nodes, edges
@@ -142,10 +145,10 @@ def save_graph_embeddings_to_neo4j(session, nodes, node2idx, embeddings):
         idx = node2idx[node]
         emb = embeddings_np[idx].tolist()
         query = """
-        MATCH (n) WHERE n.ten = $node_name
+        MATCH (n:LegalRAG {node_id: $node_id})
         SET n.graph_embedding = $embedding
         """
-        session.run(query, node_name=node, embedding=emb)
+        session.run(query, node_id=node, embedding=emb)
     print("Graph embeddings đã được lưu vào db")
 
 def train_model(model, decoder, data, num_epochs, device, lr=0.01):

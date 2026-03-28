@@ -1,17 +1,18 @@
 import os
 from pathlib import Path
+
 from dotenv import load_dotenv
 from langchain_core.prompts import PromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
-
-PROJECT_ROOT = Path(__file__).parent.parent
 
 from NER import ner
 from retrive import multi_retr
 
 load_dotenv()
 
-answerPrompt = PromptTemplate.from_template(
+CODE_ROOT = Path(__file__).resolve().parent
+
+ANSWER_PROMPT = PromptTemplate.from_template(
     """Hãy trở thành chuyên gia tư vấn luật tại Việt Nam.
 Câu hỏi của người dùng: {query}
 Trả lời dựa vào thông tin sau:
@@ -22,21 +23,30 @@ Yêu cầu:
 3. Kèm điều luật liên quan"""
 )
 
-answerModel = ChatGoogleGenerativeAI(
-    model="gemini-2.0-flash",
-    google_api_key=os.getenv("GOOGLE_API_KEY"),
-    temperature=0.3,
-    max_output_tokens=500
-)
 
-answerChain = answerPrompt | answerModel
+def build_answer_chain():
+    google_api_key = os.getenv("GOOGLE_API_KEY")
+    if not google_api_key:
+        raise ValueError("GOOGLE_API_KEY not found in environment variables. Please set it in .env file")
+
+    answer_model = ChatGoogleGenerativeAI(
+        model="gemini-2.0-flash",
+        google_api_key=google_api_key,
+        temperature=0.3,
+        max_output_tokens=500,
+    )
+    return ANSWER_PROMPT | answer_model
+
 
 def main():
     query = input("Nhập query của bạn: ").strip()
-    
-    tokens, predictions, ner_entities = ner.infer(
+    if not query:
+        print("Query không được để trống.")
+        return
+
+    _, _, ner_entities = ner.infer(
         query,
-        model_path=str(PROJECT_ROOT / "NER" / "bilstm_ner.pt")
+        model_path=str(CODE_ROOT / "NER" / "bilstm_ner.pt"),
     )
     print("\nThực thể được NER nhận diện:", ner_entities)
 
@@ -44,23 +54,21 @@ def main():
         print("\nKhông nhận diện được thực thể nào. Truy vấn toàn câu:")
 
     results = multi_retr.retrieve_entity(query, ner_entities if ner_entities else None)
-    
-    top3 = results[:5]
-    source_info = ""
-    for e in top3:
-        source_info += f"- {e['label']} ({e['name']}): {e['value']}\n"
-
-    if not top3:
+    top_results = results[:5]
+    if not top_results:
         print("Không tìm thấy căn cứ pháp lý phù hợp.")
         return
 
-    response = answerChain.invoke({
-        "query": query,
-        "source_information": source_info
-    })
+    source_info = ""
+    for entity in top_results:
+        source_info += f"- {entity['label']} ({entity['name']}): {entity['value']}\n"
+
+    answer_chain = build_answer_chain()
+    response = answer_chain.invoke({"query": query, "source_information": source_info})
 
     print("\n=== Câu trả lời từ LLM ===")
-    print(response)
+    print(response.content if hasattr(response, "content") else response)
+
 
 if __name__ == "__main__":
     main()

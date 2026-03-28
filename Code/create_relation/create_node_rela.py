@@ -1,22 +1,11 @@
 import os
+
 from langchain.llms import HuggingFaceHub
-from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain
 from huggingface_hub import login
+from langchain.chains import LLMChain
+from langchain.prompts import PromptTemplate
 
-# Use environment variable for token
-token = os.getenv('HUGGINGFACEHUB_API_TOKEN')
-if token:
-    login(token=token)
-
-llm = HuggingFaceHub(
-    repo_id="vinai/PhoGPT-4B-Chat",  
-    model_kwargs={"temperature": 0.7},
-    task="summarization",  
-    huggingfacehub_api_token=token
-)
-# 3 thực thể
-prompt_template = """
+PROMPT_TEMPLATE = """
 Bạn là một trợ lý AI chuyên trích xuất thực thể và mối quan hệ từ văn bản luật.
 Trích xuất tất cả các thực thể (nodes) và mối quan hệ (edges) từ văn bản dưới đây. Các thực thể và mối quan hệ PHẢI được viết bằng tiếng Việt. LƯU Ý: PHẢI ĐẦY ĐỦ TẤT CẢ và CHÍNH XÁC. Chỉ cẩn Phần, Chương, mục, điều
 
@@ -51,15 +40,27 @@ Văn bản:
 {input_text}
 """
 
-prompt = PromptTemplate(input_variables=["input_text"], template=prompt_template)
+def main():
+    token = os.getenv("HUGGINGFACEHUB_API_TOKEN")
+    if token:
+        login(token=token)
 
-chain = LLMChain(prompt=prompt, llm=llm)
-input_text = 'Phần thứ sáu ĐIỀU KHOẢN THI HÀNH Điều 141. Hiệu lực thi hành 1. Luật này có hiệu lực thi hành từ ngày 01 tháng 7 năm 2013, trừ các quy định liên quan đến việc áp dụng các biện pháp xử lý hành chính do Tòa án nhân dân xem xét, quyết định thì có hiệu lực kể từ ngày 01 tháng 01 năm 2014.'
+    llm = HuggingFaceHub(
+        repo_id="vinai/PhoGPT-4B-Chat",
+        model_kwargs={"temperature": 0.7},
+        task="summarization",
+        huggingfacehub_api_token=token,
+    )
+    prompt = PromptTemplate(input_variables=["input_text"], template=PROMPT_TEMPLATE)
+    chain = LLMChain(prompt=prompt, llm=llm)
+    input_text = (
+        "Phần thứ sáu ĐIỀU KHOẢN THI HÀNH Điều 141. Hiệu lực thi hành 1. Luật này có hiệu lực thi hành "
+        "từ ngày 01 tháng 7 năm 2013, trừ các quy định liên quan đến việc áp dụng các biện pháp xử lý "
+        "hành chính do Tòa án nhân dân xem xét, quyết định thì có hiệu lực kể từ ngày 01 tháng 01 năm 2014."
+    )
+    response = chain.run(input_text)
+    print(response)
 
-#with open('/home/tontide1/Github/FPTChat/Law_Chatbot/database/LUẬT  Xử lý vi phạm hành chính/Phan_6.txt', 'r') as f:
-#    input_text = f.read()
 
-response = chain.run(input_text)
-
-
-print(response)
+if __name__ == "__main__":
+    main()
