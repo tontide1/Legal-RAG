@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -11,6 +12,10 @@ from retrive import multi_retr
 load_dotenv()
 
 CODE_ROOT = Path(__file__).resolve().parent
+if str(CODE_ROOT) not in sys.path:
+    sys.path.insert(0, str(CODE_ROOT))
+
+from pipeline_utils import get_configured_gemini_model
 
 ANSWER_PROMPT = PromptTemplate.from_template(
     """Hãy trở thành chuyên gia tư vấn luật tại Việt Nam.
@@ -29,8 +34,9 @@ def build_answer_chain():
     if not google_api_key:
         raise ValueError("GOOGLE_API_KEY not found in environment variables. Please set it in .env file")
 
+    gemini_model = get_configured_gemini_model()
     answer_model = ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
+        model=gemini_model,
         google_api_key=google_api_key,
         temperature=0.3,
         max_output_tokens=500,

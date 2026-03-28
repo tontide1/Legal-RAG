@@ -1,179 +1,77 @@
 # AGENTS.md
 
 Guide for coding agents working in this repository.
-This codebase is a Vietnamese legal RAG pipeline with Neo4j + NER + hybrid retrieval + LLM answer generation.
 
-## Project Layout
-- `Code/main.py`: interactive legal question answering entrypoint.
-- `Code/save_database/save_data.py`: import legal entities/relations JSON into Neo4j.
-- `Code/embedding/create_db.py`: generate and save content embeddings and graph embeddings.
+## Project Identity
+- This repository is a Vietnamese legal Graph RAG pipeline.
+- Main flow: `NER -> hybrid retrieval -> graph rerank -> LLM answer generation`.
+- Main UX and prompts should remain in Vietnamese.
+
+## Stable Project Layout
+- `Code/main.py`: interactive legal QA entrypoint.
+- `Code/pipeline_utils.py`: shared helpers for `node_id`, text payload building, and Gemini model config.
+- `Code/save_database/save_data.py`: import legal entities and relationships into Neo4j.
+- `Code/embedding/create_db.py`: create text embeddings and graph embeddings, then persist them.
 - `Code/retrive/multi_retr.py`: BM25 + SBERT + graph reranking retrieval.
-- `Code/NER/ner.py`: BiLSTM NER training/inference for article/entity spans.
-- `Code/create_relation/create_node_rela.py`: experimental relation extraction via HuggingFaceHub.
-- `dataset/`: raw legal documents and structured JSON datasets.
+- `Code/NER/ner.py`: BiLSTM NER training and inference.
+- `Code/create_relation/create_node_rela.py`: experimental relation extraction.
+- `tests/test_pipeline_utils.py`: lightweight regression tests for shared helpers.
+- `docker-compose.yml`: local Neo4j service for development.
+- `dataset/`: legal documents and structured datasets.
+- `docs/review_fix_plan.md`: technical fix summary and remaining risks.
+- `docs/evaluation_metrics_plan.md`: evaluation metrics and implementation roadmap.
+- `docs/session_handoff.md`: latest session handoff for the next working session.
 
-## Runtime Requirements
+## Runtime Contract
 - Python 3.11+ recommended.
-- Neo4j database reachable from local environment.
-- Env using conda (conda activate RAG)
+- Preferred environment: `conda activate RAG`.
+- Neo4j is expected at `bolt://localhost:7687` unless overridden.
 
-Expected env vars:
-- `NEO4J_URI` (default: `bolt://localhost:7687`)
-- `NEO4J_USER` (default: `neo4j`)
-- `NEO4J_PASSWORD` (required)
-- `GOOGLE_API_KEY` (required for `Code/main.py`)
-- `HUGGINGFACEHUB_API_TOKEN` (optional; used in experimental script)
+Expected environment variables:
+- `NEO4J_URI`
+- `NEO4J_USER`
+- `NEO4J_PASSWORD`
+- `GOOGLE_API_KEY`
+- `GEMINI_MODEL` optional, current default `gemini-2.5-flash-lite`
+- `HUGGINGFACEHUB_API_TOKEN` optional for experimental scripts
 
-## Setup Commands
-Run from repository root.
+## Durable Architecture Decisions
+- Neo4j application data is scoped with label `LegalRAG`.
+- `node_id` is the stable unique identifier for graph write/read paths.
+- Do not key graph operations only by `ten`; duplicate names can exist across legal documents.
+- Text payload building must normalize missing `Value` to `""`, not `None`.
+- Retrieval uses:
+  - BM25 lexical score
+  - SBERT semantic score with `keepitreal/vietnamese-sbert`
+  - graph rerank over a candidate pool larger than final `top_k`
+- Query embeddings and stored node embeddings must stay in the same embedding space.
+- `Code/main.py` resolves the Gemini model from `GEMINI_MODEL`; default is `gemini-2.5-flash-lite`.
+- Destructive Neo4j cleanup must stay limited to app-owned nodes, not the whole database.
 
-```bash
-conda create -n RAG python=3.11 -y
-conda activate RAG
-python -m pip install --upgrade pip
-python -m pip install \
-  torch numpy python-dotenv neo4j rank-bm25 sentence-transformers \
-  langchain langchain-core langchain-google-genai huggingface-hub \
-  torch-geometric
-```
+## Current Behavioral Constraints
+- Neo4j node data depends on properties such as `node_id`, `ten`, `Value`, text embeddings, and graph embeddings.
+- NER labels are currently limited to `O`, `B-ARTICLE`, `I-ARTICLE`.
+- Current NER behavior is strongest on article references like `Điều <số>` and is not a general legal-entity recognizer.
+- Import-heavy or training-heavy scripts should run behind `main()` and `if __name__ == "__main__":`.
 
-Conda-first rule:
-- Always activate environment before any run/lint/test command: `conda activate RAG`.
+## Operating Workflow
+- If using local infrastructure, start Neo4j with `docker compose up -d`.
+- If source legal data changed, run `python Code/save_database/save_data.py`.
+- If graph content or embeddings changed, run `python Code/embedding/create_db.py`.
+- Run interactive QA with `python Code/main.py`.
+- For targeted regression checks, run `python -m unittest tests.test_pipeline_utils`.
 
-Notes:
-- `torch`/`torch-geometric` may need CPU/GPU-specific install variants.
-- No pinned dependency file currently exists; lock versions before production use.
-
-## Build / Run Commands
-This repository is script-driven (no formal build system).
-
-```bash
-# Load/refresh legal graph data in Neo4j
-python Code/save_database/save_data.py
-
-# Compute node embeddings and graph embeddings, then save to Neo4j
-python Code/embedding/create_db.py
-
-# Run interactive legal QA flow
-python Code/main.py
-```
-
-## Lint / Format / Type Check
-No lint/type config is committed yet. Use these defaults if needed.
-
-```bash
-python -m pip install ruff black mypy
-ruff check Code
-black --check Code
-mypy Code
-```
-
-## Test Commands
-Current status: no `tests/` directory is present yet.
-Recommended test runner when tests are added:
-
-```bash
-python -m pip install pytest
-
-# Run all tests
-pytest
-
-# Run one file
-pytest tests/test_retrieval.py
-
-# Run one test class
-pytest tests/test_retrieval.py::TestHybridRetriever
-
-# Run one single test
-pytest tests/test_retrieval.py::TestHybridRetriever::test_rerank_scores
-
-# Run tests matching keyword
-pytest -k "ner and not slow"
-```
-
-Interim smoke checks (useful now):
-
-```bash
-# Import smoke test for NER module
-python -c "from Code.NER import ner; print('ok')"
-
-# Execute NER training/inference script
-python Code/NER/ner.py
-```
-
-## Agent Workflow
-1. Validate `.env` and Neo4j connectivity.
-2. If dataset changed, run `save_data.py` first.
-3. If graph/node content changed, run `create_db.py`.
-4. Validate end-to-end behavior via `main.py`.
-5. For NER modifications, run `Code/NER/ner.py` or at least an import/infer smoke test.
-
-## Code Style Guidelines
-
-### Imports
-- Order imports: standard library, third-party, local modules.
-- Prefer one import per line.
-- Avoid wildcard imports.
-- Prefer absolute imports where practical; keep local import style consistent inside `Code/`.
-
-### Formatting
-- Follow PEP 8.
-- Use 4 spaces, no tabs.
-- Preferred max line length: 100 (up to 120 when legal text forces it).
-- Keep functions focused; split long procedural blocks where feasible.
-- Preserve explicit `encoding="utf-8"` for Vietnamese text files.
-
-### Types
+## Code and Safety Rules
+- Keep imports ordered: standard library, third-party, local modules.
+- Prefer absolute imports where practical inside `Code/`.
+- Use 4 spaces and keep code close to PEP 8.
 - Add type hints for new or modified public functions.
-- Add return annotations.
-- Use `Optional[...]` or `| None` for nullable values.
-- For structured dict payloads, prefer `TypedDict` when refactoring.
+- Fail fast on missing required credentials.
+- Do not silently swallow external-service errors.
+- Never commit `.env`, API keys, passwords, or tokens.
+- Use parameterized Cypher queries for values.
+- Be explicit and conservative with destructive operations.
 
-### Naming
-- Modules/functions/variables: `snake_case`.
-- Classes: `PascalCase`.
-- Constants: `UPPER_SNAKE_CASE`.
-- Keep domain naming explicit (`entity`, `relationship`, `embedding`, `query_text`).
-
-### Error Handling
-- Fail fast on missing required credentials (current pattern: `ValueError`).
-- Handle external boundary failures (Neo4j, model API) with actionable messages.
-- Do not swallow exceptions silently.
-- Keep user-facing CLI errors concise and recovery-oriented.
-
-### Data and Security
-- Never commit `.env`, API keys, tokens, or passwords.
-- Avoid printing sensitive values in logs.
-- Treat model checkpoints and large binaries intentionally.
-
-### Neo4j Safety
-- Use parameterized Cypher values for properties.
-- Sanitize dynamic labels/relationship names (existing scripts already strip backticks).
-- Be cautious with destructive operations like `MATCH (n) DETACH DELETE n`.
-
-### ML / Retrieval Practices
-- Document scoring changes in retrieval/rerank logic.
-- Keep training and inference responsibilities clearly separated.
-- Cache heavy model loads if startup latency becomes problematic.
-
-## Project Behaviors to Preserve
-- Main UX and prompts are Vietnamese.
-- Data flow depends on Neo4j graph + node properties (`ten`, `Value`, embeddings).
-- Retrieval fuses BM25 lexical score and semantic score before graph rerank.
-- NER labels currently use `O`, `B-ARTICLE`, `I-ARTICLE`.
-
-## Cursor / Copilot Rules
-Checked locations:
-- `.cursor/rules/`
-- `.cursorrules`
-- `.github/copilot-instructions.md`
-
-Current status:
-- No Cursor rule files found.
-- No Copilot instructions file found.
-
-If these files are added later, treat them as repository-level policy and update this guide.
-
-## Skills Status (Short)
-- Installed agent skills: none detected in this environment.
-- If skills are added later, list their names and intended usage here.
+## Documentation Policy
+- Keep `AGENTS.md` limited to durable repository knowledge and operating constraints.
+- Put session-specific progress, open tasks, blockers, and next actions in `docs/session_handoff.md`.

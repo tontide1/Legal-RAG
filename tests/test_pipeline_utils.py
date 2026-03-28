@@ -1,6 +1,7 @@
 import unittest
+from unittest.mock import patch
 
-from Code.pipeline_utils import build_text_payload, make_node_id
+from Code.pipeline_utils import build_text_payload, get_configured_gemini_model, make_node_id
 
 
 class PipelineUtilsTest(unittest.TestCase):
@@ -17,6 +18,14 @@ class PipelineUtilsTest(unittest.TestCase):
         self.assertEqual(build_text_payload("Chuong I", None), "Chuong I")
         self.assertEqual(build_text_payload("Chuong I", ""), "Chuong I")
         self.assertEqual(build_text_payload("Dieu 1", "Noi dung"), "Dieu 1 Noi dung")
+
+    def test_get_configured_gemini_model_uses_default_flash_lite(self) -> None:
+        with patch.dict("os.environ", {}, clear=True):
+            self.assertEqual(get_configured_gemini_model(), "gemini-2.5-flash-lite")
+
+    def test_get_configured_gemini_model_honors_override(self) -> None:
+        with patch.dict("os.environ", {"GEMINI_MODEL": "gemini-2.0-flash-lite"}, clear=True):
+            self.assertEqual(get_configured_gemini_model(), "gemini-2.0-flash-lite")
 
 
 if __name__ == "__main__":
