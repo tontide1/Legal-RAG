@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from Code.pipeline_utils import build_text_payload, get_configured_gemini_model, make_node_id
+from src.pipeline_utils import build_text_payload, get_configured_gemini_model, make_node_id
 
 
 class PipelineUtilsTest(unittest.TestCase):
