@@ -1,0 +1,11 @@
+python-dotenv
+neo4j
+numpy
+rank-bm25
+sentence-transformers
+langchain
+langchain-core
+langchain-google-genai
+huggingface-hub
+torch
+torch-geometric
