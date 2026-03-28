@@ -69,8 +69,17 @@ def main():
     for entity in top_results:
         source_info += f"- {entity['label']} ({entity['name']}): {entity['value']}\n"
 
-    answer_chain = build_answer_chain()
-    response = answer_chain.invoke({"query": query, "source_information": source_info})
+    try:
+        answer_chain = build_answer_chain()
+        response = answer_chain.invoke({"query": query, "source_information": source_info})
+    except Exception as exc:
+        error_text = str(exc)
+        if "429" in error_text or "RESOURCE_EXHAUSTED" in error_text:
+            print("Lỗi Gemini: vượt quota/rate limit (429 RESOURCE_EXHAUSTED).")
+        else:
+            print(f"Lỗi khi gọi Gemini: {exc}")
+        print("Tôi không thể tạo câu trả lời lúc này. Vui lòng thử lại sau hoặc đổi API key.")
+        return
 
     print("\n=== Câu trả lời từ LLM ===")
     print(response.content if hasattr(response, "content") else response)
