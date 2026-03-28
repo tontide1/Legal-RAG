@@ -1,0 +1,82 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Models and checkpoints
+*.pt
+*.pth
+*.bin
+*.ckpt
+models/
+checkpoints/
+*.model
+
+# Data and embeddings
+*.pkl
+*.pickle
+*.npy
+*.npz
+data/
+embeddings/
+*.db
+
+# Logs
+*.log
+logs/
+
+# Temporary
+*.tmp
+*.temp
+.cache/
+
+# IDE-specific
+.venv
+.env
+.pytest_cache
