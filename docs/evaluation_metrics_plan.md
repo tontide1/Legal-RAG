@@ -3,6 +3,8 @@
 ## Tóm tắt
 Thiết lập một bộ đánh giá MVP nhưng đủ số liệu thật cho toàn pipeline `NER -> retrieval -> graph rerank -> answer generation`, theo hướng hybrid: nhãn tay cho retrieval/citation/core correctness, LLM-as-judge cho faithfulness và relevance. Bộ metric dựa trên IR kiểu BEIR/TREC Legal cho retrieval và Ragas/TruLens-style cho answer quality.
 
+Tài liệu này là kế hoạch evaluation chuyên sâu. Phạm vi MVP tổng thể của đồ án được mô tả riêng tại `docs/mvp_plan.md`.
+
 ## Thiết kế benchmark và metric
 - Tạo bộ benchmark `evaluation/data/legal_rag_eval_v1.jsonl` với `120` query tiếng Việt.
 - Chia query thành 6 nhóm:

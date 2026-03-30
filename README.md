@@ -3,12 +3,29 @@
 Pipeline hỏi đáp pháp luật tiếng Việt dùng Neo4j + NER + hybrid retrieval + Gemini.
 
 ## Thành phần chính
-- `Code/main.py`: CLI hỏi đáp pháp luật
-- `Code/save_database/save_data.py`: nạp dữ liệu luật vào Neo4j
-- `Code/embedding/create_db.py`: tạo content embedding và graph embedding
-- `Code/retrive/multi_retr.py`: retrieval BM25 + SBERT + graph rerank
-- `Code/NER/ner.py`: BiLSTM NER cho span `Điều <số>`
+- `src/main.py`: CLI hỏi đáp pháp luật
+- `src/save_database/save_data.py`: nạp dữ liệu luật vào Neo4j
+- `src/embedding/create_db.py`: tạo content embedding và graph embedding
+- `src/retrive/multi_retr.py`: retrieval BM25 + SBERT + graph rerank
+- `src/NER/ner.py`: BiLSTM NER cho span `Điều <số>`
 - `docker-compose.yml`: Neo4j local cho môi trường dev
+
+## Tài liệu chính
+- `docs/review_fix_plan.md`: tổng hợp các sửa lỗi kỹ thuật đã chốt
+- `docs/evaluation_metrics_plan.md`: kế hoạch đo lường retrieval/generation
+- `docs/mvp_plan.md`: kế hoạch MVP phù hợp cho demo và báo cáo đồ án
+- `docs/session_handoff.md`: trạng thái làm việc và việc nên làm tiếp theo
+
+## Agent skills (Codex + OpenCode)
+- Skill hiện được mirror song song tại:
+  - `.codex/skills/<skill-name>/SKILL.md`
+  - `.opencode/skills/<skill-name>/SKILL.md`
+- Nguồn chuẩn là `.codex/skills`; `.opencode/skills` phải đồng bộ 1-1.
+- Kiểm tra nhanh:
+```bash
+python3 scripts/validate_skills.py --repo-root .
+python3 -m unittest tests.test_skill_validation
+```
 
 ## Yêu cầu
 - Python 3.11+
@@ -49,16 +66,16 @@ Neo4j UI:
 ## Chạy project
 ```bash
 conda activate RAG
-python Code/save_database/save_data.py
-python Code/embedding/create_db.py
-python Code/main.py
+python src/save_database/save_data.py
+python src/embedding/create_db.py
+python src/main.py
 ```
 
 ## Test nhanh
 ```bash
 conda activate RAG
 python -m unittest tests.test_pipeline_utils
-python -m py_compile Code/main.py Code/save_database/save_data.py Code/embedding/create_db.py
+python -m py_compile src/main.py src/save_database/save_data.py src/embedding/create_db.py
 ```
 
 ## Ghi chú kỹ thuật
@@ -67,3 +84,4 @@ python -m py_compile Code/main.py Code/save_database/save_data.py Code/embedding
 - Gemini model mặc định hiện tại là `gemini-2.5-flash-lite`
 - NER hiện chỉ mạnh với span tham chiếu điều luật như `Điều 33`, chưa phải NER tổng quát cho mọi tên luật/văn bản
 - Nếu gặp lỗi `429 RESOURCE_EXHAUSTED`, nguyên nhân nằm ở quota/rate limit của Gemini API key
+- MVP hiện tại được định vị là legal Graph RAG lấy cảm hứng từ NAGphormer, chưa phải bản tái hiện đầy đủ bài nghiên cứu

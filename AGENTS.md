@@ -8,18 +8,19 @@ Guide for coding agents working in this repository.
 - Main UX and prompts should remain in Vietnamese.
 
 ## Stable Project Layout
-- `Code/main.py`: interactive legal QA entrypoint.
-- `Code/pipeline_utils.py`: shared helpers for `node_id`, text payload building, and Gemini model config.
-- `Code/save_database/save_data.py`: import legal entities and relationships into Neo4j.
-- `Code/embedding/create_db.py`: create text embeddings and graph embeddings, then persist them.
-- `Code/retrive/multi_retr.py`: BM25 + SBERT + graph reranking retrieval.
-- `Code/NER/ner.py`: BiLSTM NER training and inference.
-- `Code/create_relation/create_node_rela.py`: experimental relation extraction.
+- `src/main.py`: interactive legal QA entrypoint.
+- `src/pipeline_utils.py`: shared helpers for `node_id`, text payload building, and Gemini model config.
+- `src/save_database/save_data.py`: import legal entities and relationships into Neo4j.
+- `src/embedding/create_db.py`: create text embeddings and graph embeddings, then persist them.
+- `src/retrive/multi_retr.py`: BM25 + SBERT + graph reranking retrieval.
+- `src/NER/ner.py`: BiLSTM NER training and inference.
+- `src/create_relation/create_node_rela.py`: experimental relation extraction.
 - `tests/test_pipeline_utils.py`: lightweight regression tests for shared helpers.
 - `docker-compose.yml`: local Neo4j service for development.
 - `dataset/`: legal documents and structured datasets.
 - `docs/review_fix_plan.md`: technical fix summary and remaining risks.
 - `docs/evaluation_metrics_plan.md`: evaluation metrics and implementation roadmap.
+- `docs/mvp_plan.md`: MVP scope and delivery plan for the university project.
 - `docs/session_handoff.md`: latest session handoff for the next working session.
 
 ## Runtime Contract
@@ -45,7 +46,7 @@ Expected environment variables:
   - SBERT semantic score with `keepitreal/vietnamese-sbert`
   - graph rerank over a candidate pool larger than final `top_k`
 - Query embeddings and stored node embeddings must stay in the same embedding space.
-- `Code/main.py` resolves the Gemini model from `GEMINI_MODEL`; default is `gemini-2.5-flash-lite`.
+- `src/main.py` resolves the Gemini model from `GEMINI_MODEL`; default is `gemini-2.5-flash-lite`.
 - Destructive Neo4j cleanup must stay limited to app-owned nodes, not the whole database.
 
 ## Current Behavioral Constraints
@@ -56,14 +57,14 @@ Expected environment variables:
 
 ## Operating Workflow
 - If using local infrastructure, start Neo4j with `docker compose up -d`.
-- If source legal data changed, run `python Code/save_database/save_data.py`.
-- If graph content or embeddings changed, run `python Code/embedding/create_db.py`.
-- Run interactive QA with `python Code/main.py`.
+- If source legal data changed, run `python src/save_database/save_data.py`.
+- If graph content or embeddings changed, run `python src/embedding/create_db.py`.
+- Run interactive QA with `python src/main.py`.
 - For targeted regression checks, run `python -m unittest tests.test_pipeline_utils`.
 
 ## Code and Safety Rules
 - Keep imports ordered: standard library, third-party, local modules.
-- Prefer absolute imports where practical inside `Code/`.
+- Prefer absolute imports where practical inside `src/`.
 - Use 4 spaces and keep code close to PEP 8.
 - Add type hints for new or modified public functions.
 - Fail fast on missing required credentials.
@@ -75,3 +76,4 @@ Expected environment variables:
 ## Documentation Policy
 - Keep `AGENTS.md` limited to durable repository knowledge and operating constraints.
 - Put session-specific progress, open tasks, blockers, and next actions in `docs/session_handoff.md`.
+- Keep MVP delivery scope and project-report planning in `docs/mvp_plan.md`.
