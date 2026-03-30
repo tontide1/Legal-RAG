@@ -1,63 +1,56 @@
 ---
 name: vector-database-engineer
-description: "Expert in vector databases, embedding strategies, and semantic search implementation. Masters Pinecone, Weaviate, Qdrant, Milvus, and pgvector for RAG applications, recommendation systems, and similar"
-risk: unknown
-source: community
-date_added: "2026-02-27"
+description: Design vector storage and retrieval indexing for RAG systems. Use for Neo4j-stored embeddings, candidate retrieval strategy, metadata filtering, and tradeoffs around introducing a dedicated vector database.
+risk: medium
+source: personal
+date_added: "2026-03-28"
 ---
 
 # Vector Database Engineer
 
-Expert in vector databases, embedding strategies, and semantic search implementation. Masters Pinecone, Weaviate, Qdrant, Milvus, and pgvector for RAG applications, recommendation systems, and similarity search. Use PROACTIVELY for vector search implementation, embedding optimization, or semantic retrieval systems.
+Use this skill for storage, indexing, and vector retrieval design.
 
-## Do not use this skill when
+## This repo first
 
-- The task is unrelated to vector database engineer
-- You need a different domain or tool outside this scope
-
-## Instructions
-
-- Clarify goals, constraints, and required inputs.
-- Apply relevant best practices and validate outcomes.
-- Provide actionable steps and verification.
-- If detailed examples are required, open `resources/implementation-playbook.md`.
-
-## Capabilities
-
-- Vector database selection and architecture
-- Embedding model selection and optimization
-- Index configuration (HNSW, IVF, PQ)
-- Hybrid search (vector + keyword) implementation
-- Chunking strategies for documents
-- Metadata filtering and pre/post-filtering
-- Performance tuning and scaling
+- The project already uses Neo4j and stores graph-linked data there.
+- Default assumption: keep retrieval close to the existing Neo4j-centered design unless the user explicitly wants a separate vector database.
+- Any proposal to add Pinecone, Qdrant, Weaviate, or pgvector must justify migration cost, graph integration impact, and operational complexity.
 
 ## Use this skill when
 
-- Building RAG (Retrieval Augmented Generation) systems
-- Implementing semantic search over documents
-- Creating recommendation engines
-- Building image/audio similarity search
-- Optimizing vector search latency and recall
-- Scaling vector operations to millions of vectors
+- Changing how embeddings are stored or queried
+- Tuning candidate retrieval latency or recall
+- Adding metadata filters or hybrid search strategy
+- Evaluating whether Neo4j is enough or a dedicated vector DB is needed
 
-## Workflow
+## Decision rules
 
-1. Analyze data characteristics and query patterns
-2. Select appropriate embedding model
-3. Design chunking and preprocessing pipeline
-4. Choose vector database and index type
-5. Configure metadata schema for filtering
-6. Implement hybrid search if needed
-7. Optimize for latency/recall tradeoffs
-8. Set up monitoring and reindexing strategies
+1. Keep `node_id` as the stable link between vectors and graph entities.
+2. Preserve metadata needed for legal filtering and reranking.
+3. Optimize the candidate pool before touching the final rerank stage.
+4. If storage changes, define how existing embeddings are migrated or rebuilt.
 
-## Best Practices
+## For this project, check first
 
-- Choose embedding dimensions based on use case (384-1536)
-- Implement proper chunking with overlap
-- Use metadata filtering to reduce search space
-- Monitor embedding drift over time
-- Plan for index rebuilding
-- Cache frequent queries
-- Test recall vs latency tradeoffs
+- Can the current Neo4j-backed setup satisfy recall and latency needs?
+- Is the real issue chunking or embeddings rather than vector storage?
+- Does a separate vector store complicate graph rerank and synchronization?
+
+## Anti-patterns
+
+- Adding a second vector store without a sync strategy
+- Breaking graph-to-vector identity by dropping `node_id`
+- Benchmarking final answers without measuring retrieval quality
+- Changing storage without a reindex plan
+
+## Related skills
+
+- `legal-graph-rag`
+- `rag-engineer`
+- `embedding-strategies`
+
+## Quick checklist
+
+- Where are vectors stored now?
+- What metadata is required for filtering and reranking?
+- Does the proposal improve recall, latency, or maintainability enough to justify migration?

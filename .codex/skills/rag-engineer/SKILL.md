@@ -1,95 +1,68 @@
 ---
 name: rag-engineer
-description: "I bridge the gap between raw documents and LLM understanding. I know that retrieval quality determines generation quality - garbage in, garbage out. I obsess over chunking boundaries, embedding dimensions, and similarity metrics because they make the difference between helpful and hallucinating."
-risk: unknown
-source: "vibeship-spawner-skills (Apache 2.0)"
-date_added: "2026-02-27"
+description: Design and debug retrieval-augmented generation systems. Use for chunking, candidate generation, reranking, grounding quality, and retrieval evaluation, especially for this Legal Graph RAG repository.
+risk: medium
+source: personal
+date_added: "2026-03-28"
 ---
 
 # RAG Engineer
 
-**Role**: RAG Systems Architect
+Use this skill when the task is about retrieval quality, grounding, or RAG architecture.
 
-I bridge the gap between raw documents and LLM understanding. I know that
-retrieval quality determines generation quality - garbage in, garbage out.
-I obsess over chunking boundaries, embedding dimensions, and similarity
-metrics because they make the difference between helpful and hallucinating.
+## Focus for this repo
 
-## Capabilities
+- Vietnamese legal documents
+- Hybrid retrieval
+- Graph-aware reranking
+- Evidence-grounded Gemini answers
 
-- Vector embeddings and similarity search
-- Document chunking and preprocessing
-- Retrieval pipeline design
-- Semantic search implementation
-- Context window optimization
-- Hybrid search (keyword + semantic)
+## Use this skill when
 
-## Requirements
+- Chunking hurts recall or context quality
+- Retrieval finds the wrong legal articles
+- Graph reranking behaves unexpectedly
+- Generated answers are fluent but weakly grounded
+- You need separate retrieval and generation evaluation
 
-- LLM fundamentals
-- Understanding of embeddings
-- Basic NLP concepts
+## Engineering rules
 
-## Patterns
+1. Diagnose retrieval before tuning the LLM.
+2. Keep lexical, semantic, and graph contributions observable.
+3. Evaluate candidate recall before rerank precision.
+4. Treat embedding-space mismatches as critical failures.
+5. Prefer structure-aware chunking for legal texts.
 
-### Semantic Chunking
+## Chunking guidance
 
-Chunk by meaning, not arbitrary token counts
+- Prefer article-, clause-, and point-aware chunk boundaries over naive fixed windows.
+- Preserve legal references like `Điều`, `Khoản`, and `Điểm`.
+- Add enough overlap to keep citation context, but not enough to flood retrieval with near-duplicates.
 
-```javascript
-- Use sentence boundaries, not token limits
-- Detect topic shifts with embedding similarity
-- Preserve document structure (headers, paragraphs)
-- Include overlap for context continuity
-- Add metadata for filtering
-```
+## Retrieval guidance
 
-### Hierarchical Retrieval
+- Use BM25 for explicit legal terms and citation matching.
+- Use semantic retrieval for paraphrased legal questions.
+- Use graph rerank only after enough candidates are collected.
+- Inspect failures with the candidate pool, not only the final answer.
 
-Multi-level retrieval for better precision
+## Anti-patterns
 
-```javascript
-- Index at multiple chunk sizes (paragraph, section, document)
-- First pass: coarse retrieval for candidates
-- Second pass: fine-grained retrieval for precision
-- Use parent-child relationships for context
-```
+- Using the same `top_k` for candidate generation and final output
+- Changing the LLM when recall is the real problem
+- Mixing embeddings from different models
+- Ignoring duplicate or ambiguous legal entity names
 
-### Hybrid Search
+## Related skills
 
-Combine semantic and keyword search
+- `legal-graph-rag`
+- `rag-implementation`
+- `vietnamese-legal-nlp`
+- `embedding-strategies`
 
-```javascript
-- BM25/TF-IDF for keyword matching
-- Vector similarity for semantic matching
-- Reciprocal Rank Fusion for combining scores
-- Weight tuning based on query type
-```
+## Quick checklist
 
-## Anti-Patterns
-
-### ❌ Fixed Chunk Size
-
-### ❌ Embedding Everything
-
-### ❌ Ignoring Evaluation
-
-## ⚠️ Sharp Edges
-
-| Issue | Severity | Solution |
-|-------|----------|----------|
-| Fixed-size chunking breaks sentences and context | high | Use semantic chunking that respects document structure: |
-| Pure semantic search without metadata pre-filtering | medium | Implement hybrid filtering: |
-| Using same embedding model for different content types | medium | Evaluate embeddings per content type: |
-| Using first-stage retrieval results directly | medium | Add reranking step: |
-| Cramming maximum context into LLM prompt | medium | Use relevance thresholds: |
-| Not measuring retrieval quality separately from generation | high | Separate retrieval evaluation: |
-| Not updating embeddings when source documents change | medium | Implement embedding refresh: |
-| Same retrieval strategy for all query types | medium | Implement hybrid search: |
-
-## Related Skills
-
-Works well with: `ai-agents-architect`, `prompt-engineer`, `database-architect`, `backend`
-
-## When to Use
-This skill is applicable to execute the workflow or actions described in the overview.
+- Is the failure in chunking, retrieval, rerank, or generation?
+- Did query and stored embeddings come from the same model?
+- Is graph rerank operating on enough candidates?
+- Does the answer cite the right legal evidence?

@@ -1,133 +1,76 @@
 ---
 name: gemini-api-dev
-description: "The Gemini API provides access to Google's most advanced AI models. Key capabilities include:"
-risk: unknown
-source: community
-date_added: "2026-02-27"
+description: Build or debug Gemini API integrations for this repo. Use for model selection, SDK usage, generation settings, structured output, context caching, and migration decisions while preserving the project's Gemini defaults.
+risk: medium
+source: personal
+date_added: "2026-03-28"
 ---
 
-# Gemini API Development Skill
+# Gemini API Development
 
-## Overview
+Use this skill when working on Gemini integration, model selection, prompt wiring, caching, or generation bugs.
 
-The Gemini API provides access to Google's most advanced AI models. Key capabilities include:
-- **Text generation** - Chat, completion, summarization
-- **Multimodal understanding** - Process images, audio, video, and documents
-- **Function calling** - Let the model invoke your functions
-- **Structured output** - Generate valid JSON matching your schema
-- **Code execution** - Run Python code in a sandboxed environment
-- **Context caching** - Cache large contexts for efficiency
-- **Embeddings** - Generate text embeddings for semantic search
+## Repo defaults
 
-## Current Gemini Models
+- This repository resolves the model from `GEMINI_MODEL`.
+- The current project default is `gemini-2.5-flash-lite`.
+- Do not replace the repo default just because newer preview models exist.
+- Change model only when the user asks, benchmarks justify it, or official docs require migration.
 
-- `gemini-3-pro-preview`: 1M tokens, complex reasoning, coding, research
-- `gemini-3-flash-preview`: 1M tokens, fast, balanced performance, multimodal
-- `gemini-3-pro-image-preview`: 65k / 32k tokens, image generation and editing
+## Source of truth
 
+- Gemini model availability changes frequently. Verify on the official models page before making claims.
+- Use the official docs index when implementing details:
+  - `https://ai.google.dev/gemini-api/docs/models`
+  - `https://ai.google.dev/gemini-api/docs/llms.txt`
+- Treat hardcoded "latest model" claims as stale by default.
 
-> [!IMPORTANT]
-> Models like `gemini-2.5-*`, `gemini-2.0-*`, `gemini-1.5-*` are legacy and deprecated. Use the new models above. Your knowledge is outdated.
+## Use this skill when
 
-## SDKs
+- Selecting a Gemini model for this project
+- Debugging Gemini request or response behavior
+- Migrating between Gemini SDKs or API versions
+- Adding structured output, function calling, or context caching
+- Tuning generation settings for Vietnamese legal QA
 
-- **Python**: `google-genai` install with `pip install google-genai`
-- **JavaScript/TypeScript**: `@google/genai` install with `npm install @google/genai`
-- **Go**: `google.golang.org/genai` install with `go get google.golang.org/genai`
+## Do not use this skill when
 
-> [!WARNING]
-> Legacy SDKs `google-generativeai` (Python) and `@google/generative-ai` (JS) are deprecated. Migrate to the new SDKs above urgently by following the Migration Guide.
+- The task is model-agnostic LLM architecture
+- The system does not use Gemini
+- You only need prompt-writing advice without Gemini integration details
 
-## Quick Start
+## Preferred implementation rules
 
-### Python
-```python
-from google import genai
+1. Preserve `GEMINI_MODEL` configurability in `src/main.py` and shared helpers.
+2. Fail fast on missing `GOOGLE_API_KEY`.
+3. Keep prompts and user-facing outputs in Vietnamese unless the task is explicitly technical.
+4. Keep generation deterministic enough for legal QA:
+   - prefer low temperature unless the user asks otherwise
+   - prefer structured intermediate outputs when parsing citations or entities
+5. If switching model families, document any required revalidation for latency, cost, and answer quality.
 
-client = genai.Client()
-response = client.models.generate_content(
-    model="gemini-3-flash-preview",
-    contents="Explain quantum computing"
-)
-print(response.text)
-```
+## SDK guidance
 
-### JavaScript/TypeScript
-```typescript
-import { GoogleGenAI } from "@google/genai";
+- Prefer current official Gemini SDKs and official docs over copied snippets.
+- When editing existing repo code, preserve the working SDK unless migration is part of the task.
+- If a migration is needed, verify request shapes and supported features against the official docs first.
 
-const ai = new GoogleGenAI({});
-const response = await ai.models.generateContent({
-  model: "gemini-3-flash-preview",
-  contents: "Explain quantum computing"
-});
-console.log(response.text);
-```
+## Project-specific sharp edges
 
-### Go
-```go
-package main
+- Do not "upgrade" away from `gemini-2.5-flash-lite` without checking repo constraints and user intent.
+- Do not mix Vietnamese legal prompts with overly creative settings.
+- Do not claim a model is deprecated unless the official models page says so.
+- If retrieval or graph quality is poor, do not blame the model first. Check chunking, embeddings, candidate pool, and reranking.
 
-import (
-	"context"
-	"fmt"
-	"log"
-	"google.golang.org/genai"
-)
+## Related skills
 
-func main() {
-	ctx := context.Background()
-	client, err := genai.NewClient(ctx, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
+- `legal-graph-rag` for repo architecture and invariants
+- `rag-implementation` for end-to-end Legal Graph RAG workflow
+- `prompt-caching` for Gemini caching decisions
 
-	resp, err := client.Models.GenerateContent(ctx, "gemini-3-flash-preview", genai.Text("Explain quantum computing"), nil)
-	if err != nil {
-		log.Fatal(err)
-	}
+## Quick checklist
 
-	fmt.Println(resp.Text)
-}
-```
-
-## API spec (source of truth)
-
-**Always use the latest REST API discovery spec as the source of truth for API definitions** (request/response schemas, parameters, methods). Fetch the spec when implementing or debugging API integration:
-
-- **v1beta** (default): `https://generativelanguage.googleapis.com/$discovery/rest?version=v1beta`  
-  Use this unless the integration is explicitly pinned to v1. The official SDKs (google-genai, @google/genai, google.golang.org/genai) target v1beta.
-- **v1**: `https://generativelanguage.googleapis.com/$discovery/rest?version=v1`  
-  Use only when the integration is specifically set to v1.
-
-When in doubt, use v1beta. Refer to the spec for exact field names, types, and supported operations.
-
-## How to use the Gemini API
-
-For detailed API documentation, fetch from the official docs index:
-
-**llms.txt URL**: `https://ai.google.dev/gemini-api/docs/llms.txt`
-
-This index contains links to all documentation pages in `.md.txt` format. Use web fetch tools to:
-
-1. Fetch `llms.txt` to discover available documentation pages
-2. Fetch specific pages (e.g., `https://ai.google.dev/gemini-api/docs/function-calling.md.txt`)
-
-### Key Documentation Pages 
-
-> [!IMPORTANT]
-> Those are not all the documentation pages. Use the `llms.txt` index to discover available documentation pages
-
-- [Models](https://ai.google.dev/gemini-api/docs/models.md.txt)
-- [Google AI Studio quickstart](https://ai.google.dev/gemini-api/docs/ai-studio-quickstart.md.txt)
-- [Nano Banana image generation](https://ai.google.dev/gemini-api/docs/image-generation.md.txt)
-- [Function calling with the Gemini API](https://ai.google.dev/gemini-api/docs/function-calling.md.txt)
-- [Structured outputs](https://ai.google.dev/gemini-api/docs/structured-output.md.txt)
-- [Text generation](https://ai.google.dev/gemini-api/docs/text-generation.md.txt)
-- [Image understanding](https://ai.google.dev/gemini-api/docs/image-understanding.md.txt)
-- [Embeddings](https://ai.google.dev/gemini-api/docs/embeddings.md.txt)
-- [Interactions API](https://ai.google.dev/gemini-api/docs/interactions.md.txt)
-- [SDK migration guide](https://ai.google.dev/gemini-api/docs/migrate.md.txt)
-
-## When to Use
-This skill is applicable to execute the workflow or actions described in the overview.
+- Which Gemini model is configured now?
+- Is the bug in retrieval, prompt assembly, or Gemini output?
+- Are official docs needed because model or SDK behavior may have changed?
+- Does the change preserve Vietnamese legal answer quality?

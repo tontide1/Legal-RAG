@@ -1,66 +1,90 @@
 ---
 name: prompt-caching
-description: "You're a caching specialist who has reduced LLM costs by 90% through strategic caching. You've implemented systems that cache at multiple levels: prompt prefixes, full responses, and semantic similarity matches."
-risk: unknown
-source: "vibeship-spawner-skills (Apache 2.0)"
-date_added: "2026-02-27"
+description: Design caching for LLM and RAG systems. Use for prompt-prefix caching, embedding caching, retrieval-result caching, response caching, and invalidation strategies that fit this Legal Graph RAG project.
+risk: medium
+source: personal
+date_added: "2026-03-28"
 ---
 
 # Prompt Caching
 
-You're a caching specialist who has reduced LLM costs by 90% through strategic caching.
-You've implemented systems that cache at multiple levels: prompt prefixes, full responses,
-and semantic similarity matches.
+Use this skill for cache design in LLM, RAG, and Graph RAG systems.
 
-You understand that LLM caching is different from traditional caching—prompts have
-prefixes that can be cached, responses vary with temperature, and semantic similarity
-often matters more than exact match.
+## Priority order for this repo
 
-Your core principles:
-1. Cache at the right level—prefix, response, or both
-2. K
+1. Embedding cache
+2. Retrieval-result cache
+3. Prompt-prefix or context cache
+4. Final-answer cache only when grounding is stable
 
-## Capabilities
+## Use this skill when
 
-- prompt-cache
-- response-cache
-- kv-cache
-- cag-patterns
-- cache-invalidation
+- Reducing repeated embedding cost
+- Avoiding repeated retrieval on unchanged legal data
+- Reusing stable prompt prefixes or system instructions
+- Designing invalidation after dataset or graph updates
+- Tuning latency and cost for Gemini-backed QA
 
-## Patterns
+## Do not use this skill when
 
-### Anthropic Prompt Caching
+- Data changes frequently and freshness matters more than latency
+- Answers depend on per-user state or volatile graph writes
+- The bottleneck is not repeated computation
 
-Use Claude's native prompt caching for repeated prefixes
+## Cache layers
 
-### Response Caching
+### 1. Embedding cache
 
-Cache full LLM responses for identical or similar queries
+- Cache by normalized text plus embedding model identifier.
+- Invalidate when the embedding model changes.
+- For this repo, query embeddings and stored node embeddings must stay in the same embedding space.
 
-### Cache Augmented Generation (CAG)
+### 2. Retrieval-result cache
 
-Pre-cache documents in prompt instead of RAG retrieval
+- Cache by normalized query, retrieval config, candidate pool size, and active dataset version.
+- Include whether graph reranking is enabled.
+- Invalidate when legal documents, graph structure, or node embeddings change.
 
-## Anti-Patterns
+### 3. Prompt-prefix or context cache
 
-### ❌ Caching with High Temperature
+- Cache stable instruction prefixes and repeated legal context blocks.
+- Best fit when the same system prompt or static legal framing is reused many times.
+- Tie cache keys to the active Gemini model because cache behavior is model-specific.
 
-### ❌ No Cache Invalidation
+### 4. Final-answer cache
 
-### ❌ Caching Everything
+- Use only for highly repeated, low-volatility questions.
+- Key by normalized question, retrieved evidence set, and model.
+- Avoid if answers depend on fresh graph state, user role, or changing documents.
 
-## ⚠️ Sharp Edges
+## Invalidation rules for this project
 
-| Issue | Severity | Solution |
-|-------|----------|----------|
-| Cache miss causes latency spike with additional overhead | high | // Optimize for cache misses, not just hits |
-| Cached responses become incorrect over time | high | // Implement proper cache invalidation |
-| Prompt caching doesn't work due to prefix changes | medium | // Structure prompts for optimal caching |
+Invalidate relevant caches when any of the following changes:
 
-## Related Skills
+- source legal dataset files
+- Neo4j content written by `save_data.py`
+- node text embeddings or graph embeddings
+- retrieval parameters, rerank logic, or `top_k`
+- `GEMINI_MODEL`
+- system prompt or answer template
 
-Works well with: `context-window-management`, `rag-implementation`, `conversation-memory`
+## Anti-patterns
 
-## When to Use
-This skill is applicable to execute the workflow or actions described in the overview.
+- Caching answers without including retrieved evidence in the key
+- Reusing embeddings across different embedding models
+- Caching retrieval before graph rerank while pretending the final result is cached
+- Treating stale legal answers as acceptable
+- Adding caching before measuring the actual hotspot
+
+## Related skills
+
+- `legal-graph-rag` for repo invariants
+- `rag-implementation` for retrieval pipeline design
+- `gemini-api-dev` for Gemini-specific caching behavior
+
+## Quick checklist
+
+- What exact computation is being repeated?
+- What input fields define cache correctness?
+- What event invalidates the cache?
+- Is stale legal guidance acceptable? Usually no.
