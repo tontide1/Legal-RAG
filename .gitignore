@@ -2,7 +2,7 @@
 .env
 .env.local
 .env.*.local
-
+.codex/environments
 # Python
 __pycache__/
 **/__pycache__/
