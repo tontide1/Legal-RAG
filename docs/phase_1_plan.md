@@ -1,4 +1,14 @@
 Plan Thực Hiện Phase 1
+Trạng thái cập nhật (session hiện tại)
+- [x] Bước 1: prepare_phase1_dataset.py
+- [x] Bước 2: test cho dataset prep
+- [ ] Bước 3: baseline BiLSTM trên split mới
+- [x] Bước 4: train_phobert_ner.py
+- [x] Bước 5: eval_phobert_ner.py
+- [ ] Bước 6: cập nhật src/NER/ner.py
+- [ ] Bước 7: cập nhật src/legal_qa.py
+- [ ] Bước 8: chạy test + smoke test end-to-end
+
 Mục tiêu của phase này:
 - fine-tune vinai/phobert-base-v2
 - giữ label set cũ:
