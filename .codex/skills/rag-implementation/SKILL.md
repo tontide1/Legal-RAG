@@ -1,6 +1,6 @@
 ---
 name: rag-implementation
-description: Implement or refactor the repo's Legal Graph RAG workflow: legal data ingestion, Neo4j persistence, embeddings, hybrid retrieval, graph rerank, and Gemini answer generation.
+description: "Implement or refactor the repo's Legal Graph RAG workflow: legal data ingestion, Neo4j persistence, embeddings, hybrid retrieval, graph rerank, and Gemini answer generation."
 risk: medium
 source: personal
 date_added: "2026-03-28"
