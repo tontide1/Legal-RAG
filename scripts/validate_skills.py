@@ -9,6 +9,8 @@ from pathlib import Path
 
 FRONTMATTER_BOUNDARY = "---"
 REQUIRED_FRONTMATTER_KEYS = {"name", "description"}
+SKILL_NAME_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+SKILL_ROOTS = (".codex/skills", ".opencode/skills")
 SKILL_SECTION_PATTERNS = (
     "related skill",
     "related skills",
@@ -20,7 +22,6 @@ SKILL_SECTION_PATTERNS = (
 HEADING_RE = re.compile(r"^(#+)\s+(.*)$")
 BACKTICK_RE = re.compile(r"`([^`]+)`")
 PATH_LIKE_RE = re.compile(r"^[A-Za-z0-9_./-]+\.[A-Za-z0-9]+$")
-SKILL_NAME_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 
 
 @dataclass
@@ -100,20 +101,13 @@ def referenced_skills(body_lines: list[str], known_skill_names: set[str]) -> set
     return refs
 
 
-def collect_codex_skills(repo_root: Path) -> dict[str, Path]:
-    skill_map: dict[str, Path] = {}
-    for skill_file in sorted((repo_root / ".codex" / "skills").glob("*/SKILL.md")):
-        frontmatter, _ = parse_frontmatter(skill_file)
-        skill_name = frontmatter.get("name")
-        if skill_name:
-            skill_map[skill_name] = skill_file
-    return skill_map
+def collect_skill_files(repo_root: Path, skills_root: str) -> list[Path]:
+    return sorted((repo_root / skills_root).glob("*/SKILL.md"))
 
 
-def validate_codex_skills(repo_root: Path) -> list[ValidationMessage]:
+def validate_skill_tree(repo_root: Path, skills_root: str) -> list[ValidationMessage]:
     messages: list[ValidationMessage] = []
-    codex_root = repo_root / ".codex" / "skills"
-    skill_files = sorted(codex_root.glob("*/SKILL.md"))
+    skill_files = collect_skill_files(repo_root, skills_root)
     known_skill_names = {path.parent.name for path in skill_files}
 
     for skill_file in skill_files:
@@ -140,6 +134,14 @@ def validate_codex_skills(repo_root: Path) -> list[ValidationMessage]:
                     "warning",
                     skill_file,
                     f"frontmatter name '{skill_name}' differs from directory name '{skill_file.parent.name}'",
+                )
+            )
+        if skill_name and not SKILL_NAME_RE.fullmatch(skill_name):
+            messages.append(
+                ValidationMessage(
+                    "error",
+                    skill_file,
+                    f"skill name does not match required pattern: {skill_name}",
                 )
             )
 
@@ -169,11 +171,11 @@ def validate_codex_skills(repo_root: Path) -> list[ValidationMessage]:
                     ValidationMessage(
                         "error",
                         skill_file,
-                        f"referenced skill does not exist in .codex/skills: {ref_name}",
+                        f"referenced skill does not exist in {skills_root}: {ref_name}",
                     )
                 )
 
-    for extra_file in sorted(codex_root.glob("*/CREATION-LOG.md")):
+    for extra_file in sorted((repo_root / skills_root).glob("*/CREATION-LOG.md")):
         messages.append(
             ValidationMessage(
                 "warning",
@@ -187,10 +189,7 @@ def validate_codex_skills(repo_root: Path) -> list[ValidationMessage]:
 
 def detect_agent_duplicates(repo_root: Path) -> list[ValidationMessage]:
     messages: list[ValidationMessage] = []
-    codex_names = {
-        path.parent.name
-        for path in sorted((repo_root / ".codex" / "skills").glob("*/SKILL.md"))
-    }
+    codex_names = {path.parent.name for path in collect_skill_files(repo_root, ".codex/skills")}
     for skill_file in sorted((repo_root / ".agents" / "skills").glob("*/SKILL.md")):
         skill_name = skill_file.parent.name
         if skill_name in codex_names:
@@ -204,17 +203,69 @@ def detect_agent_duplicates(repo_root: Path) -> list[ValidationMessage]:
     return messages
 
 
+def detect_skill_sync_mismatch(repo_root: Path) -> list[ValidationMessage]:
+    messages: list[ValidationMessage] = []
+    codex_map = {
+        path.parent.name: path for path in collect_skill_files(repo_root, ".codex/skills")
+    }
+    opencode_map = {
+        path.parent.name: path for path in collect_skill_files(repo_root, ".opencode/skills")
+    }
+
+    codex_names = set(codex_map)
+    opencode_names = set(opencode_map)
+
+    missing_in_opencode = sorted(codex_names - opencode_names)
+    for skill_name in missing_in_opencode:
+        messages.append(
+            ValidationMessage(
+                "error",
+                codex_map[skill_name],
+                f"missing mirrored skill in .opencode/skills: {skill_name}",
+            )
+        )
+
+    missing_in_codex = sorted(opencode_names - codex_names)
+    for skill_name in missing_in_codex:
+        messages.append(
+            ValidationMessage(
+                "error",
+                opencode_map[skill_name],
+                f"skill exists only in .opencode/skills: {skill_name}",
+            )
+        )
+
+    for skill_name in sorted(codex_names & opencode_names):
+        codex_text = codex_map[skill_name].read_text(encoding="utf-8")
+        opencode_text = opencode_map[skill_name].read_text(encoding="utf-8")
+        if codex_text != opencode_text:
+            messages.append(
+                ValidationMessage(
+                    "error",
+                    opencode_map[skill_name],
+                    f"skill content differs from .codex/skills counterpart: {skill_name}",
+                )
+            )
+
+    return messages
+
+
 def format_message(message: ValidationMessage) -> str:
     rel_path = message.path.as_posix()
     return f"[{message.level.upper()}] {rel_path}: {message.text}"
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Validate local Codex skill bundles.")
+    parser = argparse.ArgumentParser(
+        description="Validate local Codex/OpenCode skill bundles and sync parity."
+    )
     parser.add_argument(
         "--repo-root",
         default=".",
-        help="Repository root containing .codex/skills and optionally .agents/skills",
+        help=(
+            "Repository root containing .codex/skills, .opencode/skills, "
+            "and optionally .agents/skills"
+        ),
     )
     parser.add_argument(
         "--fail-on-agent-duplicates",
@@ -224,7 +275,10 @@ def main() -> int:
     args = parser.parse_args()
 
     repo_root = Path(args.repo_root).resolve()
-    messages = validate_codex_skills(repo_root)
+    messages: list[ValidationMessage] = []
+    for skills_root in SKILL_ROOTS:
+        messages.extend(validate_skill_tree(repo_root, skills_root))
+    messages.extend(detect_skill_sync_mismatch(repo_root))
     duplicate_messages = detect_agent_duplicates(repo_root)
     if args.fail_on_agent_duplicates:
         duplicate_messages = [

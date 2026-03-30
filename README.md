@@ -16,6 +16,17 @@ Pipeline hỏi đáp pháp luật tiếng Việt dùng Neo4j + NER + hybrid retr
 - `docs/mvp_plan.md`: kế hoạch MVP phù hợp cho demo và báo cáo đồ án
 - `docs/session_handoff.md`: trạng thái làm việc và việc nên làm tiếp theo
 
+## Agent skills (Codex + OpenCode)
+- Skill hiện được mirror song song tại:
+  - `.codex/skills/<skill-name>/SKILL.md`
+  - `.opencode/skills/<skill-name>/SKILL.md`
+- Nguồn chuẩn là `.codex/skills`; `.opencode/skills` phải đồng bộ 1-1.
+- Kiểm tra nhanh:
+```bash
+python3 scripts/validate_skills.py --repo-root .
+python3 -m unittest tests.test_skill_validation
+```
+
 ## Yêu cầu
 - Python 3.11+
 - Conda environment `RAG`
