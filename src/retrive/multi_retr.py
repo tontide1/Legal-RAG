@@ -26,9 +26,12 @@ class Retrive:
                  candidate_pool_size=30,
                  lambda_val=0.5,
                  num_iterations=1,
+                 verbose=True,
                  device=None):
+        self.verbose = verbose
         self.device = device if device is not None else torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print(f"Đang sử dụng device: {self.device}")
+        if self.verbose:
+            print(f"Đang sử dụng device: {self.device}")
         
         # Load credentials from environment variables
         neo4j_uri = neo4j_uri or os.getenv("NEO4J_URI", "bolt://localhost:7687")
@@ -51,9 +54,11 @@ class Retrive:
         with self.driver.session() as session:
             self.entities = self.get_entities_from_neo4j(session)
         if not self.entities:
-            print("Không tìm thấy entity nào có đủ embedding trong Neo4j.")
+            if self.verbose:
+                print("Không tìm thấy entity nào có đủ embedding trong Neo4j.")
         else:
-            print(f"Đã lấy được {len(self.entities)} entity từ Neo4j.")
+            if self.verbose:
+                print(f"Đã lấy được {len(self.entities)} entity từ Neo4j.")
         
         self.bm25_model = self.create_bm25_model(self.entities)
     
@@ -161,7 +166,8 @@ class Retrive:
         return candidates[:self.top_k]
 
     def advanced_retrieve(self, query_text, ner_entities):
-        print(f"\nXử lý truy vấn: '{query_text}'")
+        if self.verbose:
+            print(f"\nXử lý truy vấn: '{query_text}'")
         if not self.entities:
             return []
 
@@ -184,22 +190,23 @@ class Retrive:
     def close(self):
         self.driver.close()
 
-def retrieve_entity(query_text, ner_entities=None):
-    retriever = Retrive()
+def retrieve_entity(query_text, ner_entities=None, verbose=True):
+    retriever = Retrive(verbose=verbose)
     try:
         results = retriever.advanced_retrieve(query_text, ner_entities)
-        
-        print(f"\nKết quả xếp hạng cuối cùng (Top {retriever.top_k}):")
-        for idx, entity in enumerate(results, 1):
-            print(f"{idx}. Node: {entity['name']} -- BM25 Score: {entity['bm25']:.4f}, "
-                  f"Cosine Score: {entity['cosine']:.4f}, Graph Sum: {entity.get('graph_sum', 0.0):.4f}, "
-                  f"Final Score: {entity.get('final_score', entity['combined_score']):.4f}")
-        print("Nội dung truy vấn cuối cùng:")
-        for idx, entity in enumerate(results, 1):
-            print(
-                f"{idx}. {entity['name']} - {entity['value']} "
-                f"(Label: {entity['label']}) - (Score: {entity.get('final_score', entity['combined_score']):.4f})"
-            )
+
+        if verbose:
+            print(f"\nKết quả xếp hạng cuối cùng (Top {retriever.top_k}):")
+            for idx, entity in enumerate(results, 1):
+                print(f"{idx}. Node: {entity['name']} -- BM25 Score: {entity['bm25']:.4f}, "
+                      f"Cosine Score: {entity['cosine']:.4f}, Graph Sum: {entity.get('graph_sum', 0.0):.4f}, "
+                      f"Final Score: {entity.get('final_score', entity['combined_score']):.4f}")
+            print("Nội dung truy vấn cuối cùng:")
+            for idx, entity in enumerate(results, 1):
+                print(
+                    f"{idx}. {entity['name']} - {entity['value']} "
+                    f"(Label: {entity['label']}) - (Score: {entity.get('final_score', entity['combined_score']):.4f})"
+                )
         return results
     finally:
         retriever.close()
