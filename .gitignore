@@ -53,22 +53,22 @@ htmlcov/
 .ruff_cache/
 
 # Models and checkpoints
-*.pt
-*.pth
-*.bin
-*.ckpt
-models/
-checkpoints/
-*.model
+# *.pt
+# *.pth
+# *.bin
+# *.ckpt
+# models/
+# checkpoints/
+# *.model
 
 # Data and embeddings
-*.pkl
-*.pickle
-*.npy
-*.npz
-data/
-embeddings/
-*.db
+# *.pkl
+# *.pickle
+# *.npy
+# *.npz
+# data/
+# embeddings/
+# *.db
 
 # Logs
 *.log

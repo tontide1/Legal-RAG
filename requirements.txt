@@ -9,3 +9,4 @@ langchain-google-genai
 huggingface-hub
 torch
 torch-geometric
+accelerate>=1.1.0
