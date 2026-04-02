@@ -58,7 +58,7 @@ htmlcov/
 # *.bin
 # *.ckpt
 # models/
-# checkpoints/
+checkpoints/
 # *.model
 
 # Data and embeddings

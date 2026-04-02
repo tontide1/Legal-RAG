@@ -1,0 +1,58 @@
+{
+  "config": {
+    "checkpoint_dir": "src/NER/checkpoints/phobert_article_ner",
+    "batch_size": 16,
+    "max_length": 128,
+    "device": "cuda",
+    "labels": [
+      "O",
+      "B-ARTICLE",
+      "I-ARTICLE"
+    ]
+  },
+  "dataset": {
+    "test_path": "src/NER/processed/phase1_test.json",
+    "test_samples": 549
+  },
+  "overall": {
+    "entity_precision": 1.0,
+    "entity_recall": 1.0,
+    "entity_f1": 1.0,
+    "token_accuracy": 1.0,
+    "false_positive_rate": 0.0
+  },
+  "slices": {
+    "single_article": {
+      "entity_precision": 1.0,
+      "entity_recall": 1.0,
+      "entity_f1": 1.0,
+      "token_accuracy": 1.0,
+      "sample_count": 168,
+      "false_positive_rate": 0.0
+    },
+    "multi_article": {
+      "entity_precision": 1.0,
+      "entity_recall": 1.0,
+      "entity_f1": 1.0,
+      "token_accuracy": 1.0,
+      "sample_count": 330,
+      "false_positive_rate": 0.0
+    },
+    "negative_with_dieu": {
+      "entity_precision": 0.0,
+      "entity_recall": 0.0,
+      "entity_f1": 0.0,
+      "token_accuracy": 1.0,
+      "sample_count": 10,
+      "false_positive_rate": 0.0
+    },
+    "legal_generic_no_article": {
+      "entity_precision": 0.0,
+      "entity_recall": 0.0,
+      "entity_f1": 0.0,
+      "token_accuracy": 1.0,
+      "sample_count": 32,
+      "false_positive_rate": 0.0
+    }
+  }
+}
