@@ -16,6 +16,7 @@ DEFAULT_ABSTAIN_ANSWER = "Tôi không tìm thấy căn cứ pháp lý đủ rõ 
 DEFAULT_GENERATION_ERROR_ANSWER = (
     "Tôi không thể tạo câu trả lời lúc này. Vui lòng thử lại sau hoặc đổi API key."
 )
+DEFAULT_NER_BACKEND = "bilstm"
 
 SERIALIZED_NODE_KEYS = (
     "node_id",
@@ -95,7 +96,31 @@ def build_context_text(nodes: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def resolve_ner_backend() -> str:
+    backend = os.getenv("NER_BACKEND", DEFAULT_NER_BACKEND).strip().lower()
+    if backend in {"bilstm", "phobert"}:
+        return backend
+    return DEFAULT_NER_BACKEND
+
+
 def _default_ner_infer(query: str) -> list[str]:
+    backend = resolve_ner_backend()
+
+    if backend == "phobert":
+        from NER import phobert_ner
+
+        checkpoint_dir = os.getenv(
+            "PHOBERT_NER_CHECKPOINT",
+            str(CODE_ROOT / "NER" / "checkpoints" / "phobert_article_ner"),
+        )
+        max_length = int(os.getenv("PHOBERT_NER_MAX_LENGTH", "128"))
+        _, _, ner_entities = phobert_ner.infer(
+            query,
+            checkpoint_dir=checkpoint_dir,
+            max_length=max_length,
+        )
+        return ner_entities
+
     from NER import ner
 
     _, _, ner_entities = ner.infer(
@@ -196,8 +221,10 @@ def run_legal_qa(
 __all__ = [
     "DEFAULT_ABSTAIN_ANSWER",
     "DEFAULT_GENERATION_ERROR_ANSWER",
+    "DEFAULT_NER_BACKEND",
     "build_context_text",
     "extract_citations_from_nodes",
+    "resolve_ner_backend",
     "run_legal_qa",
     "serialize_retrieved_nodes",
 ]
