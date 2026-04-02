@@ -53,8 +53,8 @@ htmlcov/
 .ruff_cache/
 
 # Models and checkpoints
-# *.pt
-# *.pth
+*.pt
+*.pth
 # *.bin
 # *.ckpt
 # models/
