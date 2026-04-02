@@ -1,13 +1,28 @@
 import unittest
+from unittest.mock import patch
 
 from src.legal_qa import (
     DEFAULT_ABSTAIN_ANSWER,
+    DEFAULT_NER_BACKEND,
     extract_citations_from_nodes,
+    resolve_ner_backend,
     run_legal_qa,
 )
 
 
 class LegalQAPipelineTest(unittest.TestCase):
+    def test_resolve_ner_backend_defaults_to_bilstm(self) -> None:
+        with patch.dict("os.environ", {}, clear=True):
+            self.assertEqual(resolve_ner_backend(), DEFAULT_NER_BACKEND)
+
+    def test_resolve_ner_backend_accepts_phobert(self) -> None:
+        with patch.dict("os.environ", {"NER_BACKEND": "phobert"}, clear=True):
+            self.assertEqual(resolve_ner_backend(), "phobert")
+
+    def test_resolve_ner_backend_rejects_unknown_backend(self) -> None:
+        with patch.dict("os.environ", {"NER_BACKEND": "unknown"}, clear=True):
+            self.assertEqual(resolve_ner_backend(), DEFAULT_NER_BACKEND)
+
     def test_extract_citations_from_nodes_uses_retrieved_metadata(self) -> None:
         citations = extract_citations_from_nodes(
             [
