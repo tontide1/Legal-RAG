@@ -83,3 +83,7 @@ logs/
 .venv
 .env
 .pytest_cache
+
+# Vector Store and FAISS index
+vector_store/
+*.faiss
