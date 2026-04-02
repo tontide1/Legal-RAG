@@ -1,0 +1,19 @@
+{
+  "version": "0.20.1",
+  "environments": [
+    "gemini",
+    "codex",
+    "opencode"
+  ],
+  "phases": [
+    "requirements",
+    "design",
+    "planning",
+    "implementation",
+    "testing",
+    "deployment",
+    "monitoring"
+  ],
+  "createdAt": "2026-04-02T16:21:22.688Z",
+  "updatedAt": "2026-04-02T16:21:22.740Z"
+}
