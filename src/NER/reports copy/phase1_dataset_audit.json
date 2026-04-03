@@ -1,0 +1,38 @@
+{
+  "generated_at": "2026-03-30T19:06:30.723796+00:00",
+  "input_path": "/home/tontide1/coding/rag_project/Legal-RAG/src/NER/ner_data_8000.json",
+  "dedup_output_path": "/home/tontide1/coding/rag_project/Legal-RAG/src/NER/processed/phase1_dedup.json",
+  "summary": {
+    "before_dedup": {
+      "total_samples": 8000,
+      "positive_samples": 5000,
+      "negative_samples": 3000,
+      "entity_count_buckets": {
+        "0": 3000,
+        "1": 1698,
+        "2+": 3302
+      },
+      "label_distribution": {
+        "B-ARTICLE": 9942,
+        "I-ARTICLE": 9942,
+        "O": 70974
+      }
+    },
+    "after_dedup": {
+      "total_samples": 4995,
+      "positive_samples": 4984,
+      "negative_samples": 11,
+      "entity_count_buckets": {
+        "0": 11,
+        "1": 1682,
+        "2+": 3302
+      },
+      "label_distribution": {
+        "B-ARTICLE": 9926,
+        "I-ARTICLE": 9926,
+        "O": 49707
+      }
+    },
+    "duplicates_removed": 3005
+  }
+}

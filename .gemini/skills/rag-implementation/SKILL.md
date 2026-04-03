@@ -1,9 +1,10 @@
 ---
+description: 'Implement or refactor the repo''s Legal Graph RAG workflow: legal data
+  ingestion, Neo4j persistence, embeddings, hybrid retrieval, graph rerank, and Gemini
+  answer generation. Use this skill when Changing ingestion or graph persistence,
+  Rebuilding embeddings or retrieval logic, Improving graph reranking, Adjusting prompt
+  assembly for grounded answers, Debugging poor answer quality in the full pipeline.'
 name: rag-implementation
-description: "Implement or refactor the repo's Legal Graph RAG workflow: legal data ingestion, Neo4j persistence, embeddings, hybrid retrieval, graph rerank, and Gemini answer generation."
-risk: medium
-source: personal
-date_added: "2026-03-28"
 ---
 
 # Legal Graph RAG Implementation

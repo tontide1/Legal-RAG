@@ -1,0 +1,350 @@
+{
+  "generated_at": "2026-04-02T19:15:51.369589+00:00",
+  "config": {
+    "seed": 42,
+    "oversample_ratio": 1.2,
+    "template_max_ratio": 0.15,
+    "family_quotas": {
+      "negative_with_dieu_non_citation": 500,
+      "negative_legal_generic": 400,
+      "negative_numeric_non_article": 300,
+      "negative_adversarial_near_miss": 300,
+      "positive_single_article_paraphrase": 500,
+      "positive_multi_article_paraphrase": 400,
+      "positive_roman_numeral_article": 120,
+      "positive_punctuation_and_case_variants": 100,
+      "positive_article_with_doc_context": 80
+    }
+  },
+  "summary": {
+    "before_augment": {
+      "total_samples": 4397,
+      "positive_samples": 3988,
+      "negative_samples": 409,
+      "entity_count_buckets": {
+        "0": 409,
+        "1": 1346,
+        "2+": 2642
+      },
+      "label_distribution": {
+        "B-ARTICLE": 7942,
+        "I-ARTICLE": 7942,
+        "O": 47295
+      },
+      "source_distribution": {
+        "original": 3998,
+        "synthetic_hard_negative": 399
+      },
+      "template_family_distribution": {
+        "hieu-luc-pham-vi-dieu-kien": 80,
+        "phap-ly-tong-quat": 80,
+        "doi-song-co-tu-dieu": 80,
+        "co-ten-van-ban-khong-co-dieu": 81,
+        "co-so-khong-phai-citation": 78
+      }
+    },
+    "generated_only": {
+      "total_samples": 2700,
+      "positive_samples": 1200,
+      "negative_samples": 1500,
+      "entity_count_buckets": {
+        "0": 1500,
+        "1": 800,
+        "2+": 400
+      },
+      "label_distribution": {
+        "O": 35735,
+        "B-ARTICLE": 1717,
+        "I-ARTICLE": 1717
+      },
+      "source_distribution": {
+        "augmentation_v1": 2700
+      },
+      "template_family_distribution": {
+        "negative_with_dieu_non_citation": 500,
+        "negative_legal_generic": 400,
+        "negative_numeric_non_article": 300,
+        "negative_adversarial_near_miss": 300,
+        "positive_single_article_paraphrase": 500,
+        "positive_multi_article_paraphrase": 400,
+        "positive_roman_numeral_article": 120,
+        "positive_punctuation_and_case_variants": 100,
+        "positive_article_with_doc_context": 80
+      }
+    },
+    "after_augment": {
+      "total_samples": 7097,
+      "positive_samples": 5188,
+      "negative_samples": 1909,
+      "entity_count_buckets": {
+        "0": 1909,
+        "1": 2146,
+        "2+": 3042
+      },
+      "label_distribution": {
+        "B-ARTICLE": 9659,
+        "I-ARTICLE": 9659,
+        "O": 83030
+      },
+      "source_distribution": {
+        "original": 3998,
+        "synthetic_hard_negative": 399,
+        "augmentation_v1": 2700
+      },
+      "template_family_distribution": {
+        "hieu-luc-pham-vi-dieu-kien": 80,
+        "phap-ly-tong-quat": 80,
+        "doi-song-co-tu-dieu": 80,
+        "co-ten-van-ban-khong-co-dieu": 81,
+        "co-so-khong-phai-citation": 78,
+        "negative_with_dieu_non_citation": 500,
+        "negative_legal_generic": 400,
+        "negative_numeric_non_article": 300,
+        "negative_adversarial_near_miss": 300,
+        "positive_single_article_paraphrase": 500,
+        "positive_multi_article_paraphrase": 400,
+        "positive_roman_numeral_article": 120,
+        "positive_punctuation_and_case_variants": 100,
+        "positive_article_with_doc_context": 80
+      }
+    },
+    "generated_count": 2700,
+    "family_distribution": {
+      "negative_with_dieu_non_citation": 500,
+      "negative_legal_generic": 400,
+      "negative_numeric_non_article": 300,
+      "negative_adversarial_near_miss": 300,
+      "positive_single_article_paraphrase": 500,
+      "positive_multi_article_paraphrase": 400,
+      "positive_roman_numeral_article": 120,
+      "positive_punctuation_and_case_variants": 100,
+      "positive_article_with_doc_context": 80
+    },
+    "leakage_counts": {
+      "generated_vs_val": 0,
+      "generated_vs_test": 0
+    }
+  },
+  "generation_stats": [
+    {
+      "family": "negative_with_dieu_non_citation",
+      "quota": 500,
+      "target_raw": 600,
+      "selected": 500,
+      "attempts": 547,
+      "max_per_rule": 75,
+      "rule_usage": {
+        "ndieu_11": 50,
+        "ndieu_12": 40,
+        "ndieu_4": 44,
+        "ndieu_10": 49,
+        "ndieu_2": 43,
+        "ndieu_9": 31,
+        "ndieu_1": 32,
+        "ndieu_6": 36,
+        "ndieu_7": 43,
+        "ndieu_3": 30,
+        "ndieu_5": 43,
+        "ndieu_8": 59
+      },
+      "rejected_reasons": {
+        "duplicate": 47
+      }
+    },
+    {
+      "family": "negative_legal_generic",
+      "quota": 400,
+      "target_raw": 480,
+      "selected": 400,
+      "attempts": 701,
+      "max_per_rule": 60,
+      "rule_usage": {
+        "nlegal_2": 5,
+        "nlegal_6": 60,
+        "nlegal_7": 60,
+        "nlegal_1": 55,
+        "nlegal_3": 60,
+        "nlegal_8": 48,
+        "nlegal_4": 60,
+        "nlegal_5": 52
+      },
+      "rejected_reasons": {
+        "duplicate": 215,
+        "rule_cap": 86
+      }
+    },
+    {
+      "family": "negative_numeric_non_article",
+      "quota": 300,
+      "target_raw": 360,
+      "selected": 300,
+      "attempts": 474,
+      "max_per_rule": 45,
+      "rule_usage": {
+        "nnum_3": 9,
+        "nnum_13": 30,
+        "nnum_9": 31,
+        "nnum_1": 7,
+        "nnum_14": 23,
+        "nnum_5": 10,
+        "nnum_4": 10,
+        "nnum_12": 29,
+        "nnum_16": 33,
+        "nnum_11": 22,
+        "nnum_10": 30,
+        "nnum_15": 25,
+        "nnum_2": 11,
+        "nnum_6": 11,
+        "nnum_7": 9,
+        "nnum_8": 10
+      },
+      "rejected_reasons": {
+        "duplicate": 174
+      }
+    },
+    {
+      "family": "negative_adversarial_near_miss",
+      "quota": 300,
+      "target_raw": 360,
+      "selected": 300,
+      "attempts": 481,
+      "max_per_rule": 45,
+      "rule_usage": {
+        "nmiss_7": 16,
+        "nmiss_1": 9,
+        "nmiss_3": 1,
+        "nmiss_18": 37,
+        "nmiss_12": 15,
+        "nmiss_9": 27,
+        "nmiss_15": 26,
+        "nmiss_17": 7,
+        "nmiss_10": 20,
+        "nmiss_8": 9,
+        "nmiss_16": 30,
+        "nmiss_13": 33,
+        "nmiss_11": 13,
+        "nmiss_4": 15,
+        "nmiss_5": 14,
+        "nmiss_14": 20,
+        "nmiss_6": 7,
+        "nmiss_2": 1
+      },
+      "rejected_reasons": {
+        "duplicate": 181
+      }
+    },
+    {
+      "family": "positive_single_article_paraphrase",
+      "quota": 500,
+      "target_raw": 600,
+      "selected": 500,
+      "attempts": 579,
+      "max_per_rule": 75,
+      "rule_usage": {
+        "psingle_6": 61,
+        "psingle_3": 68,
+        "psingle_1": 64,
+        "psingle_7": 54,
+        "psingle_2": 64,
+        "psingle_5": 58,
+        "psingle_8": 75,
+        "psingle_4": 56
+      },
+      "rejected_reasons": {
+        "duplicate": 78,
+        "rule_cap": 1
+      }
+    },
+    {
+      "family": "positive_multi_article_paraphrase",
+      "quota": 400,
+      "target_raw": 480,
+      "selected": 400,
+      "attempts": 402,
+      "max_per_rule": 60,
+      "rule_usage": {
+        "pmulti_7": 57,
+        "pmulti_6": 40,
+        "pmulti_2": 60,
+        "pmulti_8": 56,
+        "pmulti_3": 54,
+        "pmulti_5": 56,
+        "pmulti_1": 40,
+        "pmulti_4": 37
+      },
+      "rejected_reasons": {
+        "rule_cap": 2
+      }
+    },
+    {
+      "family": "positive_roman_numeral_article",
+      "quota": 120,
+      "target_raw": 144,
+      "selected": 120,
+      "attempts": 162,
+      "max_per_rule": 18,
+      "rule_usage": {
+        "proman_11": 10,
+        "proman_7": 7,
+        "proman_12": 13,
+        "proman_1": 8,
+        "proman_9": 12,
+        "proman_10": 11,
+        "proman_13": 8,
+        "proman_5": 6,
+        "proman_6": 6,
+        "proman_2": 7,
+        "proman_14": 14,
+        "proman_4": 5,
+        "proman_8": 7,
+        "proman_3": 6
+      },
+      "rejected_reasons": {
+        "duplicate": 42
+      }
+    },
+    {
+      "family": "positive_punctuation_and_case_variants",
+      "quota": 100,
+      "target_raw": 120,
+      "selected": 100,
+      "attempts": 113,
+      "max_per_rule": 15,
+      "rule_usage": {
+        "ppunc_5": 12,
+        "ppunc_6": 13,
+        "ppunc_4": 15,
+        "ppunc_3": 8,
+        "ppunc_1": 13,
+        "ppunc_8": 12,
+        "ppunc_7": 12,
+        "ppunc_2": 15
+      },
+      "rejected_reasons": {
+        "duplicate": 9,
+        "rule_cap": 4
+      }
+    },
+    {
+      "family": "positive_article_with_doc_context",
+      "quota": 80,
+      "target_raw": 96,
+      "selected": 80,
+      "attempts": 85,
+      "max_per_rule": 12,
+      "rule_usage": {
+        "pdoc_7": 9,
+        "pdoc_8": 7,
+        "pdoc_3": 8,
+        "pdoc_5": 12,
+        "pdoc_6": 12,
+        "pdoc_1": 9,
+        "pdoc_4": 12,
+        "pdoc_2": 11
+      },
+      "rejected_reasons": {
+        "rule_cap": 5
+      }
+    }
+  ]
+}

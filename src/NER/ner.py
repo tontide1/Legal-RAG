@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 import torch
@@ -7,10 +8,25 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset, random_split
 
 PROJECT_ROOT = Path(__file__).parent.parent
+DEFAULT_NER_BACKEND = "phobert"
+DEFAULT_PHOBERT_CHECKPOINT = PROJECT_ROOT / "NER" / "checkpoints" / "phobert_article_ner"
+DEFAULT_DEDUP_DATASET_PATH = PROJECT_ROOT / "NER" / "processed" / "phase1_dedup.json"
+DEFAULT_BILSTM_MODEL_PATH = PROJECT_ROOT / "NER" / "bilstm_ner.pt"
 
 
 def _ner_dataset_path() -> Path:
-    return PROJECT_ROOT / "NER" / "ner_data_8000.json"
+    dataset_path_from_env = os.getenv("NER_DATASET_PATH")
+    if dataset_path_from_env:
+        resolved_path = Path(dataset_path_from_env)
+    else:
+        resolved_path = DEFAULT_DEDUP_DATASET_PATH
+
+    if not resolved_path.exists():
+        raise FileNotFoundError(
+            f"NER dataset not found at {resolved_path}. "
+            "Generate processed dataset first or set NER_DATASET_PATH to a valid processed file."
+        )
+    return resolved_path
 
 
 _EXAMPLES = None
@@ -110,10 +126,56 @@ hidden_dim = 128
 num_layers = 2
 num_labels = len(label2id)
 
-def load_model(model_path="bilstm_ner.pt", device=None):
+
+def resolve_ner_backend(backend: str | None = None) -> str:
+    selected_backend = backend or os.getenv("NER_BACKEND", DEFAULT_NER_BACKEND)
+    normalized_backend = selected_backend.strip().lower()
+    if normalized_backend in {"bilstm", "phobert"}:
+        return normalized_backend
+    return DEFAULT_NER_BACKEND
+
+
+def _resolve_device(device=None):
+    if device is not None:
+        return device
+    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+def _load_phobert_module():
+    try:
+        from NER import phobert_ner
+    except ImportError:
+        import phobert_ner
+    return phobert_ner
+
+
+def load_model(
+    model_path: str | Path | None = None,
+    device=None,
+    *,
+    backend: str | None = None,
+    checkpoint_dir: str | Path | None = None,
+):
+    selected_backend = resolve_ner_backend(backend)
+    resolved_device = _resolve_device(device)
+
+    if selected_backend == "phobert":
+        phobert_ner = _load_phobert_module()
+        resolved_checkpoint = Path(checkpoint_dir) if checkpoint_dir else DEFAULT_PHOBERT_CHECKPOINT
+        tokenizer, model, phobert_device = phobert_ner.load_model(
+            checkpoint_dir=resolved_checkpoint,
+            device=resolved_device,
+        )
+        return {
+            "backend": "phobert",
+            "tokenizer": tokenizer,
+            "model": model,
+            "device": phobert_device,
+            "checkpoint_dir": str(resolved_checkpoint),
+        }
+
+    resolved_model_path = Path(model_path) if model_path is not None else DEFAULT_BILSTM_MODEL_PATH
     token2id_map, _ = get_token_mappings()
-    if device is None:
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = BiLSTM_NER(
         vocab_size=len(token2id_map),
         embedding_dim=embedding_dim,
@@ -121,29 +183,65 @@ def load_model(model_path="bilstm_ner.pt", device=None):
         num_layers=num_layers,
         num_labels=num_labels,
         dropout=0.1
-    ).to(device)
-    model.load_state_dict(torch.load(model_path, map_location=device))
+    ).to(resolved_device)
+    model.load_state_dict(torch.load(str(resolved_model_path), map_location=resolved_device))
     model.eval()
     return model
 
-def predict(query, model, token2id_map=None, device=None):
+
+def predict(
+    query,
+    model,
+    token2id_map=None,
+    device=None,
+    *,
+    backend: str | None = None,
+    max_length: int = 128,
+):
+    selected_backend = resolve_ner_backend(backend)
+
+    if isinstance(model, dict) and model.get("backend") == "phobert":
+        selected_backend = "phobert"
+
+    if selected_backend == "phobert":
+        phobert_ner = _load_phobert_module()
+        if not isinstance(model, dict) or model.get("backend") != "phobert":
+            raise ValueError("PhoBERT backend requires a model bundle returned by load_model(..., backend='phobert')")
+
+        query_tokens = query.split()
+        predicted_labels = phobert_ner.predict_labels(
+            tokens=query_tokens,
+            tokenizer=model["tokenizer"],
+            model=model["model"],
+            device=model["device"],
+            max_length=max_length,
+        )
+        predictions = [label2id.get(label, label2id["O"]) for label in predicted_labels]
+        return query_tokens, predictions
+
     if token2id_map is None:
         token2id_map, _ = get_token_mappings()
-    if device is None:
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    resolved_device = _resolve_device(device)
     query_tokens = query.split()
     query_token_ids = [token2id_map.get(tok, token2id_map["<UNK>"]) for tok in query_tokens]
-    query_tensor = torch.tensor(query_token_ids, dtype=torch.long).unsqueeze(0).to(device)
+    query_tensor = torch.tensor(query_token_ids, dtype=torch.long).unsqueeze(0).to(resolved_device)
     with torch.no_grad():
         logits = model(query_tensor)  # (1, seq_len, num_labels)
         predictions = torch.argmax(logits, dim=-1).squeeze(0).tolist()
     return query_tokens, predictions
 
-def extract_entities(tokens, predictions, id2label):
+
+def extract_entities(tokens, predictions, id2label_map=None):
+    if id2label_map is None:
+        id2label_map = id2label
+
     entities = []
     current_entity = []
     for token, pred in zip(tokens, predictions):
-        label = id2label[pred]
+        if isinstance(pred, str):
+            label = pred
+        else:
+            label = id2label_map[pred]
         if label == "B-ARTICLE":
             if current_entity:
                 entities.append(" ".join(current_entity))
@@ -162,11 +260,30 @@ def extract_entities(tokens, predictions, id2label):
         entities.append(" ".join(current_entity))
     return entities
 
-def infer(query, model_path="bilstm_ner.pt", device=None):
-    if device is None:
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = load_model(model_path, device)
-    tokens, predictions = predict(query, model, device=device)
+
+def infer(
+    query,
+    model_path: str | Path | None = None,
+    device=None,
+    *,
+    backend: str | None = None,
+    checkpoint_dir: str | Path | None = None,
+    max_length: int = 128,
+):
+    selected_backend = resolve_ner_backend(backend)
+    model = load_model(
+        model_path,
+        device,
+        backend=selected_backend,
+        checkpoint_dir=checkpoint_dir,
+    )
+    tokens, predictions = predict(
+        query,
+        model,
+        device=device,
+        backend=selected_backend,
+        max_length=max_length,
+    )
     entities = extract_entities(tokens, predictions, id2label)
     return tokens, predictions, entities
 
@@ -231,5 +348,7 @@ if __name__ == '__main__':
 __all__ = [
     "token2id", "id2token", "label2id", "id2label",
     "embedding_dim", "hidden_dim", "num_layers", "num_labels",
+    "DEFAULT_NER_BACKEND", "DEFAULT_PHOBERT_CHECKPOINT",
+    "DEFAULT_DEDUP_DATASET_PATH", "DEFAULT_BILSTM_MODEL_PATH", "resolve_ner_backend",
     "BiLSTM_NER", "load_model", "predict", "extract_entities", "infer"
 ]

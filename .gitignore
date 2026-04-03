@@ -2,7 +2,7 @@
 .env
 .env.local
 .env.*.local
-
+.codex/environments
 # Python
 __pycache__/
 **/__pycache__/
@@ -55,20 +55,20 @@ htmlcov/
 # Models and checkpoints
 *.pt
 *.pth
-*.bin
-*.ckpt
-models/
+# *.bin
+# *.ckpt
+# models/
 checkpoints/
-*.model
+# *.model
 
 # Data and embeddings
-*.pkl
-*.pickle
-*.npy
-*.npz
-data/
-embeddings/
-*.db
+# *.pkl
+# *.pickle
+# *.npy
+# *.npz
+# data/
+# embeddings/
+# *.db
 
 # Logs
 *.log

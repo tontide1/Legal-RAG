@@ -1,0 +1,128 @@
+{
+  "generated_at": "2026-03-30T19:06:30.800037+00:00",
+  "config": {
+    "random_seed": 42,
+    "synthetic_negative_target": 500,
+    "train_ratio": 0.8,
+    "val_ratio": 0.1,
+    "test_ratio": 0.1
+  },
+  "synthetic": {
+    "generated_count": 500,
+    "family_distribution": {
+      "co-so-khong-phai-citation": 100,
+      "co-ten-van-ban-khong-co-dieu": 100,
+      "doi-song-co-tu-dieu": 100,
+      "hieu-luc-pham-vi-dieu-kien": 100,
+      "phap-ly-tong-quat": 100
+    }
+  },
+  "merged_dataset": {
+    "total_samples": 5495,
+    "duplicates_removed_after_merge": 0
+  },
+  "splits": {
+    "train": {
+      "summary": {
+        "total_samples": 4397,
+        "positive_samples": 3988,
+        "negative_samples": 409,
+        "entity_count_buckets": {
+          "0": 409,
+          "1": 1346,
+          "2+": 2642
+        },
+        "label_distribution": {
+          "B-ARTICLE": 7942,
+          "I-ARTICLE": 7942,
+          "O": 47295
+        }
+      },
+      "source_distribution": {
+        "original": 3998,
+        "synthetic_hard_negative": 399
+      },
+      "unique_text_count": 4397
+    },
+    "val": {
+      "summary": {
+        "total_samples": 549,
+        "positive_samples": 498,
+        "negative_samples": 51,
+        "entity_count_buckets": {
+          "0": 51,
+          "1": 168,
+          "2+": 330
+        },
+        "label_distribution": {
+          "B-ARTICLE": 986,
+          "I-ARTICLE": 986,
+          "O": 5983
+        }
+      },
+      "source_distribution": {
+        "original": 499,
+        "synthetic_hard_negative": 50
+      },
+      "unique_text_count": 549
+    },
+    "test": {
+      "summary": {
+        "total_samples": 549,
+        "positive_samples": 498,
+        "negative_samples": 51,
+        "entity_count_buckets": {
+          "0": 51,
+          "1": 168,
+          "2+": 330
+        },
+        "label_distribution": {
+          "B-ARTICLE": 998,
+          "I-ARTICLE": 998,
+          "O": 5922
+        }
+      },
+      "source_distribution": {
+        "original": 498,
+        "synthetic_hard_negative": 51
+      },
+      "unique_text_count": 549
+    }
+  },
+  "split_internal_report": {
+    "group_count": 5495,
+    "stratum_allocation": {
+      "positive::2+": {
+        "group_count": 3302,
+        "train_groups": 2642,
+        "val_groups": 330,
+        "test_groups": 330
+      },
+      "positive::1": {
+        "group_count": 1682,
+        "train_groups": 1346,
+        "val_groups": 168,
+        "test_groups": 168
+      },
+      "negative::0": {
+        "group_count": 511,
+        "train_groups": 409,
+        "val_groups": 51,
+        "test_groups": 51
+      }
+    },
+    "split_group_counts": {
+      "train": 4397,
+      "val": 549,
+      "test": 549
+    },
+    "leakage": {
+      "has_overlap": false,
+      "overlap_counts": {
+        "train_val": 0,
+        "train_test": 0,
+        "val_test": 0
+      }
+    }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "config": {
+    "model_name": "vinai/phobert-base-v2",
+    "seed": 42,
+    "learning_rate": 2e-05,
+    "num_epochs": 4.0,
+    "weight_decay": 0.01,
+    "warmup_ratio": 0.1,
+    "max_length": 128,
+    "train_batch_size": 16,
+    "eval_batch_size": 16,
+    "labels": [
+      "O",
+      "B-ARTICLE",
+      "I-ARTICLE"
+    ]
+  },
+  "dataset": {
+    "train_samples": 4397,
+    "val_samples": 549
+  },
+  "train_metrics": {
+    "train_runtime": 137.018,
+    "train_samples_per_second": 128.363,
+    "train_steps_per_second": 8.028,
+    "total_flos": 215971377187086.0,
+    "train_loss": 0.05239159635522149,
+    "epoch": 4.0
+  },
+  "eval_metrics": {
+    "eval_loss": 0.010441925376653671,
+    "eval_entity_precision": 1.0,
+    "eval_entity_recall": 1.0,
+    "eval_entity_f1": 1.0,
+    "eval_token_accuracy": 1.0,
+    "eval_runtime": 1.1801,
+    "eval_samples_per_second": 465.215,
+    "eval_steps_per_second": 29.659,
+    "epoch": 4.0
+  },
+  "output_dir": "src/NER/checkpoints/phobert_article_ner"
+}

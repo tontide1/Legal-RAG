@@ -1,0 +1,60 @@
+{
+  "config": {
+    "model_path": "src/NER/bilstm_ner.pt",
+    "device": "cuda",
+    "labels": [
+      "O",
+      "B-ARTICLE",
+      "I-ARTICLE"
+    ]
+  },
+  "dataset": {
+    "test_path": "src/NER/processed/phase1_test.json",
+    "test_samples": 549
+  },
+  "overall": {
+    "entity_precision": 0.9960079840319361,
+    "entity_recall": 1.0,
+    "entity_f1": 0.9980000000000001,
+    "token_accuracy": 0.998989643849457,
+    "false_positive_rate": 0.0784313725490196
+  },
+  "slices": {
+    "single_article": {
+      "entity_precision": 1.0,
+      "entity_recall": 1.0,
+      "entity_f1": 1.0,
+      "token_accuracy": 1.0,
+      "sample_count": 168,
+      "false_positive_rate": 0.0
+    },
+    "multi_article": {
+      "entity_precision": 1.0,
+      "entity_recall": 1.0,
+      "entity_f1": 1.0,
+      "token_accuracy": 1.0,
+      "sample_count": 330,
+      "false_positive_rate": 0.0
+    },
+    "negative_with_dieu": {
+      "entity_precision": 0.0,
+      "entity_recall": 0.0,
+      "entity_f1": 0.0,
+      "token_accuracy": 0.9587628865979382,
+      "sample_count": 10,
+      "false_positive_rate": 0.4
+    },
+    "legal_generic_no_article": {
+      "entity_precision": 0.0,
+      "entity_recall": 0.0,
+      "entity_f1": 0.0,
+      "token_accuracy": 0.9965870307167235,
+      "sample_count": 32,
+      "false_positive_rate": 0.03125
+    }
+  },
+  "runtime": {
+    "total_seconds": 0.9114,
+    "samples_per_second": 602.3877
+  }
+}
