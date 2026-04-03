@@ -71,6 +71,14 @@ python src/embedding/create_db.py
 python src/main.py
 ```
 
+## Chạy giao diện Streamlit
+```bash
+conda activate RAG
+streamlit run streamlit_app.py
+```
+
+Giao diện web sẽ mở tại `http://localhost:8501`.
+
 ## Test nhanh
 ```bash
 conda activate RAG
@@ -85,3 +93,8 @@ python -m py_compile src/main.py src/save_database/save_data.py src/embedding/cr
 - NER hiện chỉ mạnh với span tham chiếu điều luật như `Điều 33`, chưa phải NER tổng quát cho mọi tên luật/văn bản
 - Nếu gặp lỗi `429 RESOURCE_EXHAUSTED`, nguyên nhân nằm ở quota/rate limit của Gemini API key
 - MVP hiện tại được định vị là legal Graph RAG lấy cảm hứng từ NAGphormer, chưa phải bản tái hiện đầy đủ bài nghiên cứu
+
+## Lỗi thường gặp
+- **Thiếu `GOOGLE_API_KEY`**: Gemini không thể generate câu trả lời. Kiểm tra file `.env`.
+- **Thiếu `NEO4J_PASSWORD`**: Không thể kết nối Neo4j để retrieval. Kiểm tra file `.env` và đảm bảo Docker đang chạy.
+- **`429 RESOURCE_EXHAUSTED`**: Gemini API key đã vượt quota/rate limit. Đợi hoặc đổi API key khác.
