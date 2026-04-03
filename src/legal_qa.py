@@ -16,7 +16,7 @@ DEFAULT_ABSTAIN_ANSWER = "Tôi không tìm thấy căn cứ pháp lý đủ rõ 
 DEFAULT_GENERATION_ERROR_ANSWER = (
     "Tôi không thể tạo câu trả lời lúc này. Vui lòng thử lại sau hoặc đổi API key."
 )
-DEFAULT_NER_BACKEND = "bilstm"
+DEFAULT_NER_BACKEND = "phobert"
 
 SERIALIZED_NODE_KEYS = (
     "node_id",
@@ -104,28 +104,20 @@ def resolve_ner_backend() -> str:
 
 
 def _default_ner_infer(query: str) -> list[str]:
-    backend = resolve_ner_backend()
-
-    if backend == "phobert":
-        from NER import phobert_ner
-
-        checkpoint_dir = os.getenv(
-            "PHOBERT_NER_CHECKPOINT",
-            str(CODE_ROOT / "NER" / "checkpoints" / "phobert_article_ner"),
-        )
-        max_length = int(os.getenv("PHOBERT_NER_MAX_LENGTH", "128"))
-        _, _, ner_entities = phobert_ner.infer(
-            query,
-            checkpoint_dir=checkpoint_dir,
-            max_length=max_length,
-        )
-        return ner_entities
-
     from NER import ner
+
+    backend = resolve_ner_backend()
+    checkpoint_dir = os.getenv(
+        "PHOBERT_NER_CHECKPOINT",
+        str(CODE_ROOT / "NER" / "checkpoints" / "phobert_article_ner"),
+    )
+    max_length = int(os.getenv("PHOBERT_NER_MAX_LENGTH", "128"))
 
     _, _, ner_entities = ner.infer(
         query,
-        model_path=str(CODE_ROOT / "NER" / "bilstm_ner.pt"),
+        backend=backend,
+        checkpoint_dir=checkpoint_dir,
+        max_length=max_length,
     )
     return ner_entities
 

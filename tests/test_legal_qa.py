@@ -11,7 +11,7 @@ from src.legal_qa import (
 
 
 class LegalQAPipelineTest(unittest.TestCase):
-    def test_resolve_ner_backend_defaults_to_bilstm(self) -> None:
+    def test_resolve_ner_backend_defaults_to_phobert(self) -> None:
         with patch.dict("os.environ", {}, clear=True):
             self.assertEqual(resolve_ner_backend(), DEFAULT_NER_BACKEND)
 
