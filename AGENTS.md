@@ -1,157 +1,174 @@
 # AGENTS.md
 
-Guide for agentic coding assistants working in this repository.
+Operational guide for agentic coding assistants in this repository.
 
-## 1) Project Overview
-- Repository type: Vietnamese legal Graph RAG pipeline.
-- End-to-end flow: `NER -> hybrid retrieval -> graph rerank -> LLM answer generation`.
-- Product language: user-facing prompts and answers should remain in Vietnamese.
-- Runtime style: script-first Python project (no Poetry/Makefile task runner).
+## 1) Repo Snapshot
+- Project: Vietnamese Legal Graph RAG for legal QA.
+- Core pipeline invariant: `NER -> hybrid retrieval -> graph rerank -> Gemini answer`.
+- Main orchestration: `src/legal_qa.py`.
+- CLI entrypoint: `src/main.py`.
+- Streamlit entrypoint: `streamlit_app.py`.
+- UI runtime adapter: `src/ui_runtime.py`.
+- User-facing language should remain Vietnamese unless task asks otherwise.
 
-## 2) Key Repository Paths
-- `src/main.py`: interactive legal QA CLI entrypoint.
-- `src/legal_qa.py`: orchestrates NER, retrieval, answer generation, and structured outputs.
-- `src/pipeline_utils.py`: shared helpers (`node_id`, text payload, Gemini model selection).
-- `src/save_database/save_data.py`: loads legal entities + relationships into Neo4j.
-- `src/embedding/create_db.py`: builds and stores content + graph embeddings.
-- `src/retrive/multi_retr.py`: BM25 + SBERT + graph rerank hybrid retrieval.
-- `src/NER/ner.py`: BiLSTM NER training/inference.
-- `evaluation/run_eval.py`: deterministic evaluation runner.
-- `scripts/validate_skills.py`: validates `.codex/skills` and `.opencode/skills` parity.
-- `tests/test_pipeline_utils.py`, `tests/test_legal_qa.py`, `tests/test_evaluation_metrics.py`, `tests/test_skill_validation.py`: core regression tests.
+## 2) High-Value Paths
+- `src/legal_qa.py`: callable QA pipeline and output contract.
+- `src/retrive/multi_retr.py`: BM25 + SBERT + graph rerank retrieval.
+- `src/NER/ner.py`: unified NER interface.
+- `src/NER/phobert_ner.py`: PhoBERT inference and cache behavior.
+- `src/save_database/save_data.py`: Neo4j ingestion.
+- `src/embedding/create_db.py`: content + graph embedding build.
+- `src/pipeline_utils.py`: shared helpers and Gemini model default.
+- `streamlit_app.py`: one-page UI for MVP demo.
+- `src/ui_runtime.py`: env status + UI wrapper to call pipeline.
+- `tests/`: unit and smoke tests.
 
-## 3) Environment and Dependencies
-- Python: 3.11+ recommended.
-- Preferred environment: `conda activate RAG`.
+## 3) Environment and Setup
+- Recommended env: `conda activate RAG`.
 - Install dependencies: `python3 -m pip install -r requirements.txt`.
-- Local infra: Neo4j via `docker compose up -d`.
-- Neo4j default URI: `bolt://localhost:7687` unless overridden.
+- Start local Neo4j: `docker compose up -d`.
+- Required env vars:
+  - `NEO4J_URI`
+  - `NEO4J_USER`
+  - `NEO4J_PASSWORD`
+  - `GOOGLE_API_KEY`
+- Optional env vars:
+  - `GEMINI_MODEL` (default `gemini-2.5-flash-lite`)
+  - `NER_BACKEND` (`phobert` default)
+  - `PHOBERT_NER_CHECKPOINT`
+  - `PHOBERT_NER_MAX_LENGTH`
+  - `NER_DATASET_PATH`
 
-Required environment variables:
-- `NEO4J_URI`
-- `NEO4J_USER`
-- `NEO4J_PASSWORD`
-- `GOOGLE_API_KEY`
+## 4) Build / Run Commands
 
-Optional environment variables:
-- `GEMINI_MODEL` (default: `gemini-2.5-flash-lite`)
-- `HUGGINGFACEHUB_API_TOKEN` (experimental scripts)
-- `EVAL_ENABLE_LLM_JUDGE` and `EVAL_JUDGE_MODEL` (evaluation controls)
+### Core pipeline (CLI)
+- `docker compose up -d`
+- `python3 src/save_database/save_data.py`
+- `python3 src/embedding/create_db.py`
+- `python3 src/main.py`
 
-## 4) Build / Lint / Test Commands
+### Streamlit demo
+- `streamlit run streamlit_app.py`
 
-### Setup and runtime
-- Start Neo4j: `docker compose up -d`
-- Ingest graph data: `python3 src/save_database/save_data.py`
-- Rebuild embeddings: `python3 src/embedding/create_db.py`
-- Run QA CLI: `python3 src/main.py`
-
-Recommended rerun order after data/schema flow changes:
+### Recommended data refresh order
 1. `python3 src/save_database/save_data.py`
 2. `python3 src/embedding/create_db.py`
-3. `python3 src/main.py`
+3. `python3 src/main.py` or `streamlit run streamlit_app.py`
 
-### Test commands (unittest)
-- Run all tests: `python3 -m unittest`
-- Run one test module:
-  - `python3 -m unittest tests.test_pipeline_utils`
-  - `python3 -m unittest tests.test_legal_qa`
-- Run one test class:
-  - `python3 -m unittest tests.test_pipeline_utils.PipelineUtilsTest`
-  - `python3 -m unittest tests.test_legal_qa.LegalQAPipelineTest`
-- Run a single test method (important for fast debug loops):
-  - `python3 -m unittest tests.test_pipeline_utils.PipelineUtilsTest.test_make_node_id_uses_label_and_name`
-  - `python3 -m unittest tests.test_legal_qa.LegalQAPipelineTest.test_run_legal_qa_returns_abstain_when_retrieval_is_empty`
-  - `python3 -m unittest tests.test_evaluation_metrics.EvaluationMetricsTest.test_ndcg_at_k_rewards_better_ranking`
-  - `python3 -m unittest tests.test_skill_validation.SkillValidationTest.test_skill_validator_passes_for_codex_and_opencode_skills`
+## 5) Test Commands (including single-test)
 
-### Evaluation and validation
-- Run deterministic evaluation (no LLM judge): `python3 evaluation/run_eval.py --disable-llm-judge`
-- Validate skill trees + parity: `python3 scripts/validate_skills.py --repo-root .`
-- Run skill tests: `python3 -m unittest tests.test_skill_validation`
+### Run all tests
+- `python3 -m unittest`
 
-### Lightweight syntax checks
-- Quick syntax check:
-  - `python3 -m py_compile src/main.py src/legal_qa.py src/save_database/save_data.py src/embedding/create_db.py src/retrive/multi_retr.py`
+### Run one module
+- `python3 -m unittest tests.test_legal_qa`
+- `python3 -m unittest tests.test_pipeline_utils`
+- `python3 -m unittest tests.test_streamlit_smoke`
+- `python3 -m unittest tests.test_ner_inference`
 
-### Lint / formatter status
-- No dedicated linter/formatter config (`ruff`, `black`, `isort`, `mypy`) is committed.
-- Keep changes PEP 8-oriented and consistent with existing code style.
-- Do not introduce a new formatting tool unless explicitly requested.
+### Run one class
+- `python3 -m unittest tests.test_legal_qa.LegalQAPipelineTest`
+- `python3 -m unittest tests.test_streamlit_smoke.StreamlitSmokeTest`
 
-## 5) Code Style Guidelines
+### Run one test method (fastest loop)
+- `python3 -m unittest tests.test_legal_qa.LegalQAPipelineTest.test_run_legal_qa_returns_abstain_when_retrieval_is_empty`
+- `python3 -m unittest tests.test_pipeline_utils.PipelineUtilsTest.test_get_configured_gemini_model_uses_default_flash_lite`
+- `python3 -m unittest tests.test_streamlit_smoke.StreamlitSmokeTest.test_check_env_status_returns_dict`
+
+### Evaluation and helpers
+- `python3 evaluation/run_eval.py --disable-llm-judge`
+- `python3 scripts/validate_skills.py --repo-root .`
+
+### Quick syntax sanity
+- `python3 -m py_compile src/main.py src/legal_qa.py src/ui_runtime.py streamlit_app.py`
+
+## 6) QA Output Contract (Do Not Break)
+- `run_legal_qa(query)` returns a dict with keys:
+  - `query`
+  - `ner_entities`
+  - `retrieved_nodes`
+  - `context_text`
+  - `answer_text`
+  - `citations`
+  - `scores`
+  - `timings`
+  - `errors`
+- This contract is validated in `tests/test_legal_qa.py`.
+
+## 7) Retrieval and Embedding Invariants
+- Keep hybrid retrieval behavior intact:
+  - BM25 lexical score
+  - SBERT cosine score (`keepitreal/vietnamese-sbert`)
+  - graph rerank on candidate pool
+- Keep query embeddings and stored node embeddings in same embedding space.
+- If embedding model or graph structure changes, rebuild embeddings before evaluation.
+
+## 8) Graph and Data Safety
+- Neo4j app data must stay scoped to label `LegalRAG`.
+- `node_id` is the stable identifier; do not rely only on `ten`.
+- Missing `Value` must normalize to `""`, not `None`.
+- Prefer parameterized Cypher.
+- Never commit secrets (`.env`, API keys, credentials).
+
+## 9) Streamlit-Specific Notes
+- `src/ui_runtime.py` should load `.env` before env checks.
+- Env status fields for secrets should display `SET` or `MISSING`.
+- Keep UI resilient with `try/except` around pipeline call.
+- Avoid duplicating business logic in UI layer.
+- Keep CLI (`src/main.py`) behavior unchanged.
+
+## 10) Code Style Guidelines
 
 ### Imports
-- Order imports as: standard library -> third-party -> local modules.
-- Group imports cleanly with one blank line between groups.
-- Prefer absolute imports inside `src/` where practical.
-- Remove unused imports during edits.
+- Group order: standard library -> third-party -> local modules.
+- Keep one blank line between groups.
+- Remove unused imports.
 
 ### Formatting
-- Use 4-space indentation.
-- Keep functions focused and testable; extract helpers for complex logic.
-- Keep line lengths reasonable and readable (PEP 8 baseline).
-- Add comments only for non-obvious logic or domain constraints.
+- Follow PEP 8 style with 4-space indentation.
+- Prefer small, focused functions.
+- Keep diffs minimal and consistent with existing style.
+- Add comments only when logic is non-obvious.
 
 ### Typing
-- Add type hints for new/modified public functions.
-- Prefer concrete types (`list[dict]`, `dict[str, float]`) over broad `Any`.
-- Keep function signatures stable unless the task requires an API change.
+- Add type hints for new and changed public APIs.
+- Prefer concrete types (`list[str]`, `dict[str, str]`).
+- Avoid broad `Any` unless unavoidable.
 
-### Naming conventions
-- Functions/variables: `snake_case`.
-- Classes: `PascalCase`.
-- Constants: `UPPER_SNAKE_CASE`.
-- Preserve dataset field names in Vietnamese when required by existing payload schema.
+### Naming
+- `snake_case` for variables and functions.
+- `PascalCase` for classes.
+- `UPPER_SNAKE_CASE` for constants.
+- Preserve existing schema field names when required for compatibility.
 
-### Error handling
-- Fail fast when required credentials or configuration are missing.
-- Do not silently swallow database or external API failures.
-- Raise explicit exceptions with actionable messages.
-- If exceptions are transformed for UX, preserve technical details in diagnostics.
+### Error Handling
+- Fail fast on missing required config.
+- Raise actionable errors with clear context.
+- Do not silently swallow infra/API exceptions.
+- For user-facing flows, provide safe fallback plus diagnostics.
 
-### Script boundaries
-- Keep import-heavy or training-heavy execution behind `main()`.
-- Use `if __name__ == "__main__":` for script entrypoints.
+## 11) Lint / Formatter Status
+- No enforced repo config for `ruff`, `black`, `isort`, or `mypy`.
+- Do not introduce new tooling unless explicitly requested.
+- Match existing style and keep changes pragmatic.
 
-## 6) Data and DB Safety Rules
-- Scope application graph operations to nodes labeled `LegalRAG`.
-- Use parameterized Cypher values whenever possible.
-- Be conservative with destructive operations; avoid broad cleanup beyond app-owned scope.
-- Never commit secrets (`.env`, API keys, passwords, tokens).
+## 12) Agent Workflow Expectations
+- Read related modules before cross-cutting edits.
+- Preserve pipeline invariants unless task explicitly changes architecture.
+- Run targeted tests first, then broader suites.
+- When changing defaults or runtime behavior, update docs and tests together.
+- Prefer updating `README.md` and planning docs when user-facing commands change.
 
-## 7) Architecture Invariants (Do Not Break)
-- `node_id` is the stable unique identifier for graph read/write operations.
-- Do not key graph operations only by `ten` (duplicate names may exist).
-- Normalize missing `Value` to `""` (empty string), not `None`.
-- Retrieval stack remains hybrid:
-  - BM25 lexical retrieval
-  - SBERT semantic retrieval (`keepitreal/vietnamese-sbert`)
-  - Graph rerank on a candidate pool larger than final `top_k`
-- Query embeddings and stored node embeddings must stay in the same embedding space.
-- `src/main.py` and `src/legal_qa.py` resolve Gemini model via `GEMINI_MODEL`.
-- Current default Gemini model is `gemini-2.5-flash-lite`.
+## 13) Common Failure Modes
+- `Neo.ClientError.Security.Unauthorized`: Neo4j credentials mismatch.
+- `GOOGLE_API_KEY not found`: missing Gemini key in environment.
+- `429 RESOURCE_EXHAUSTED`: Gemini quota/rate limit hit.
+- If data changed but retrieval looks stale, rerun:
+  - `python3 src/save_database/save_data.py`
+  - `python3 src/embedding/create_db.py`
 
-## 8) Current Model/Behavior Constraints
-- NER label set currently: `O`, `B-ARTICLE`, `I-ARTICLE`.
-- NER is strongest on references like `Điều <số>` and not yet a general legal-entity recognizer.
-- Abstention behavior in QA should remain deterministic when retrieval is empty.
-
-## 9) Agent Workflow Expectations
-- Before edits, inspect related modules and preserve behavior unless change is required.
-- For retrieval/graph changes, verify impact on node identity, embeddings, and reranking.
-- For generation changes, prioritize legal grounding quality over stylistic fluency.
-- After edits, run targeted tests first, then broader suites as needed.
-- If data flow changes, document required rerun order clearly.
-
-## 10) Skills and Agent Metadata
-- Skill trees exist in both:
-  - `.codex/skills/<name>/SKILL.md`
-  - `.opencode/skills/<name>/SKILL.md`
-- `.codex/skills` is source-of-truth; `.opencode/skills` must mirror 1:1.
-- Validate parity with: `python3 scripts/validate_skills.py --repo-root .`.
-
-## 11) Documentation Policy
-- Keep `AGENTS.md` focused on durable repository constraints and operating guidance.
-- Put session-specific progress/blockers/next steps in `docs/session_handoff.md`.
-- Keep MVP/report planning in `docs/mvp_plan.md` and related `docs/` plans.
+## 14) Documentation Policy
+- Keep AGENTS.md durable and operational.
+- Put temporary session notes in `docs/session_handoff/`.
+- Keep planning/task status in `docs/planning/`.
+- If commands, defaults, or runtime shape changes, update AGENTS.md promptly.
