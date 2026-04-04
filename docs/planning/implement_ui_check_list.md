@@ -53,6 +53,7 @@ Ghi chú:
 - [x] Không chỉnh sửa file này cho integration UI (giữ contract cũ).
 - [x] Không đổi output contract (`query`, `ner_entities`, `retrieved_nodes`, `context_text`, `answer_text`, `citations`, `scores`, `timings`, `errors`).
 - [x] Không thay đổi logic cốt lõi pipeline ngoài phạm vi UI.
+- [x] Đã hook parser document reference vào `_default_ner_infer()` để merge entity từ parser với NER model.
 
 ## 5) `src/main.py`
 
@@ -143,6 +144,10 @@ streamlit run streamlit_app.py
 - Đã thêm `tests/test_streamlit_smoke.py`.
 - Đã sửa env status để load `.env` trước khi check và hiển thị `SET`/`MISSING`.
 - Đã thêm cache `st.cache_resource` trong `src/ui_runtime.py` cho retriever và answer chain phục vụ Streamlit.
+- Đã tạo `src/NER/legal_ref_parser.py` cho parser document reference (Luật, Bộ luật, Nghị định).
+- Đã hook parser vào `src/legal_qa.py` để merge entity từ parser với NER model.
+- Đã thêm `tests/test_legal_ref_parser.py` và bổ sung test parser vào `tests/test_ner_inference.py`.
+- Đã thêm integration test document entity vào `tests/test_legal_qa.py`.
 
 ## 13) Việc còn lại để chạy trên máy local
 
