@@ -70,16 +70,6 @@ SimpleRAG/
 | Semantic     | Vietnamese SBERT qua ChromaDB - tốt cho câu hỏi diễn đạt lại ý    | 15     |
 | RRF Merge    | Reciprocal Rank Fusion kết hợp 2 ranked list                       | Top 7  |
 
-### 5. Answer Generation
-
-- Model: Gemini (GEMINI_MODEL từ .env, mặc định gemini-2.5-flash-lite)
-- System prompt yêu cầu:
-  - Chỉ trả lời dựa trên evidence
-  - Trích dẫn cụ thể Điều/Khoản/Điểm
-  - Trả lời tiếng Việt
-- Temperature: 0.2 (bảo thủ, phù hợp pháp luật)
-
----
 
 ## Hướng dẫn chạy
 
