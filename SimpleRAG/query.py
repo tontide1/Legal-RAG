@@ -111,13 +111,6 @@ class HybridRetriever:
                 })
 
 SYSTEM_PROMPT = """Bạn là trợ lý pháp luật Việt Nam. 
-Dựa vào các trích đoạn văn bản pháp luật được cung cấp bên dưới, hãy trả lời câu hỏi của người dùng.
-
-QUY TẮC:
-1. Chỉ trả lời dựa trên thông tin trong các trích đoạn. Nếu không đủ thông tin, hãy nói rõ.
-2. Trích dẫn cụ thể Điều, Khoản, Điểm khi có thể.
-3. Trả lời bằng tiếng Việt, rõ ràng và chính xác.
-4. Nếu câu hỏi không liên quan đến pháp luật trong ngữ cảnh, hãy thông báo.
 """
 
 
