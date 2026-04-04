@@ -14,7 +14,7 @@ DATASET_DIR = os.path.join(os.path.dirname(__file__), "dataset")
 CHROMA_DIR = os.path.join(os.path.dirname(__file__), "chroma_db")
 COLLECTION_NAME = "legal_chunks"
 EMBEDDING_MODEL = "keepitreal/vietnamese-sbert"
-CHUNK_MAX_CHARS = 2500         
+CHUNK_MAX_CHARS = 2000         
 CHUNK_OVERLAP_CHARS = 200   
 
 def collect_txt_files(root_dir: str) -> list[str]:
@@ -93,7 +93,6 @@ def _split_long(text: str) -> list[str]:
 
 
 def chunk_id(doc_name: str, dieu: str, index: int) -> str:
-    #Tạo ID ổn định cho chunk.
     raw = f"{doc_name}|{dieu}|{index}"
     return hashlib.md5(raw.encode()).hexdigest()
 
