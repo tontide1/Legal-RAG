@@ -19,7 +19,7 @@ EMBEDDING_MODEL = "keepitreal/vietnamese-sbert"
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 
-SEMANTIC_TOP_K = 15       
+SEMANTIC_TOP_K = 18       
 BM25_TOP_K = 15            
 FINAL_TOP_K = 7            
 
@@ -28,21 +28,11 @@ if not GOOGLE_API_KEY:
     sys.exit(1)
 
 
-def simple_tokenize(text: str) -> list[str]:
-    """Tokenize đơn giản cho BM25: lowercase + split whitespace."""
-    text = re.sub(r"[^\w\sàáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđ]",
-                  " ", text.lower())
-    return text.split()
-
-
 def reciprocal_rank_fusion(
     ranked_lists: list[list[tuple[str, float]]],
     k: int = 60,
 ) -> list[tuple[str, float]]:
 
-    #Reciprocal Rank Fusion (RRF) để merge nhiều ranked list.
-    #Mỗi ranked_list = [(doc_id, score), ...]
-    #Trả về list doc_id sorted desc theo RRF score.
  
     scores: dict[str, float] = {}
     for ranked in ranked_lists:
