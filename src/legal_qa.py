@@ -105,6 +105,7 @@ def resolve_ner_backend() -> str:
 
 def _default_ner_infer(query: str) -> list[str]:
     from NER import ner
+    from NER.legal_ref_parser import extract_legal_document_entities, merge_legal_entities
 
     backend = resolve_ner_backend()
     checkpoint_dir = os.getenv(
@@ -119,7 +120,8 @@ def _default_ner_infer(query: str) -> list[str]:
         checkpoint_dir=checkpoint_dir,
         max_length=max_length,
     )
-    return ner_entities
+    parsed_entities = extract_legal_document_entities(query)
+    return merge_legal_entities(ner_entities, parsed_entities)
 
 
 def _default_retrieve(query: str, ner_entities: list[str]) -> list[dict]:
