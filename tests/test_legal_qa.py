@@ -118,5 +118,45 @@ class LegalQAPipelineTest(unittest.TestCase):
         self.assertEqual(result["errors"], [])
 
 
+class LegalQADocumentEntityTest(unittest.TestCase):
+    def test_document_only_query_creates_ner_entities(self) -> None:
+        from src.NER.legal_ref_parser import extract_legal_document_entities
+
+        entities = extract_legal_document_entities("Luật Hải quan quy định gì?")
+        self.assertIn("Luật Hải Quan", entities)
+
+    def test_mixed_query_keeps_article_and_document(self) -> None:
+        from src.NER.legal_ref_parser import extract_legal_document_entities, merge_legal_entities
+
+        ner_entities = ["Điều 33"]
+        parsed_entities = extract_legal_document_entities("Luật Hải quan và Điều 33 quy định gì?")
+        merged = merge_legal_entities(ner_entities, parsed_entities)
+        self.assertIn("Điều 33", merged)
+        self.assertIn("Luật Hải Quan", merged)
+
+    def test_dedupe_when_parser_and_model_overlap(self) -> None:
+        from src.NER.legal_ref_parser import merge_legal_entities
+
+        base = ["Luật Hải Quan"]
+        parsed = ["Luật Hải Quan"]
+        result = merge_legal_entities(base, parsed)
+        self.assertEqual(result, ["Luật Hải Quan"])
+
+    def test_run_legal_qa_output_contract_with_document_entities(self) -> None:
+        result = run_legal_qa(
+            "Luật Hải quan quy định gì?",
+            ner_infer_fn=lambda query: ["Luật Hải Quan"],
+            retrieve_fn=lambda query, ner_entities: [],
+            generate_answer_fn=lambda query, context_text: "không được gọi",
+        )
+
+        self.assertEqual(result["query"], "Luật Hải quan quy định gì?")
+        self.assertEqual(result["ner_entities"], ["Luật Hải Quan"])
+        self.assertEqual(result["retrieved_nodes"], [])
+        self.assertEqual(result["answer_text"], DEFAULT_ABSTAIN_ANSWER)
+        self.assertEqual(result["errors"], [])
+        self.assertIn("total_ms", result["timings"])
+
+
 if __name__ == "__main__":
     unittest.main()

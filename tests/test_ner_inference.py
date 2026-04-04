@@ -62,5 +62,51 @@ class NERInferenceContractTest(unittest.TestCase):
         self.assertEqual(entities, ["Điều 20"])
 
 
+class LegalRefParserTest(unittest.TestCase):
+    def test_extract_law_entities_finds_known_law(self) -> None:
+        from src.NER.legal_ref_parser import extract_law_entities
+
+        result = extract_law_entities("Luật Hải quan quy định gì?")
+        self.assertEqual(result, ["Luật Hải Quan"])
+
+    def test_extract_code_law_entities_finds_known_code(self) -> None:
+        from src.NER.legal_ref_parser import extract_code_law_entities
+
+        result = extract_code_law_entities("Bộ luật Dân sự quy định thế nào?")
+        self.assertEqual(result, ["Bộ Luật Dân Sự"])
+
+    def test_extract_decree_entities_finds_standard_code(self) -> None:
+        from src.NER.legal_ref_parser import extract_decree_entities
+
+        result = extract_decree_entities("Theo Nghị định 100/2019/NĐ-CP thì sao?")
+        self.assertEqual(result, ["Nghị định 100/2019/NĐ-CP"])
+
+    def test_merge_legal_entities_preserves_article_and_document(self) -> None:
+        from src.NER.legal_ref_parser import merge_legal_entities
+
+        base = ["Điều 33"]
+        parsed = ["Luật Hải Quan"]
+        result = merge_legal_entities(base, parsed)
+        self.assertEqual(result, ["Điều 33", "Luật Hải Quan"])
+
+    def test_negative_case_luat_su_not_matched(self) -> None:
+        from src.NER.legal_ref_parser import extract_legal_document_entities
+
+        result = extract_legal_document_entities("Tôi muốn hỏi luật sư về thủ tục")
+        self.assertEqual(result, [])
+
+    def test_negative_case_bo_phan_not_matched(self) -> None:
+        from src.NER.legal_ref_parser import extract_legal_document_entities
+
+        result = extract_legal_document_entities("Bộ phận tiếp nhận hồ sơ")
+        self.assertEqual(result, [])
+
+    def test_negative_case_dieu_kien_not_matched(self) -> None:
+        from src.NER.legal_ref_parser import extract_legal_document_entities
+
+        result = extract_legal_document_entities("Điều kiện đăng ký là gì")
+        self.assertEqual(result, [])
+
+
 if __name__ == "__main__":
     unittest.main()
