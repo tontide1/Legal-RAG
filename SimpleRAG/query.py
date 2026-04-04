@@ -19,13 +19,19 @@ EMBEDDING_MODEL = "keepitreal/vietnamese-sbert"
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 
-SEMANTIC_TOP_K = 18       
+SEMANTIC_TOP_K = 15       
 BM25_TOP_K = 15            
 FINAL_TOP_K = 7            
 
 if not GOOGLE_API_KEY:
     print("[LOI] Thieu GOOGLE_API_KEY trong .env")
     sys.exit(1)
+
+
+def simple_tokenize(text: str) -> list[str]:
+    text = re.sub(r"[^\w\sàáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđ]",
+                  " ", text.lower())
+    return text.split()
 
 
 def reciprocal_rank_fusion(
@@ -42,7 +48,6 @@ def reciprocal_rank_fusion(
 
 class HybridRetriever:
     #BM25 + Semantic retrieval từ ChromaDB.
-
     def __init__(self) -> None:
         print("[LOAD] Dang tai ChromaDB collection ...")
         client = chromadb.PersistentClient(path=CHROMA_DIR)
