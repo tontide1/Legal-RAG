@@ -142,22 +142,5 @@ TRẢ LỜI:
 Theo Điều 6, thời hiệu xử phạt VPHC là 01 năm, trừ một số
 lĩnh vực đặc biệt là 02 năm...
 ============================================================
-```
-
----
-
-## So sánh với Graph RAG (dự án chính)
-
-| Tiêu chí      | Simple RAG              | Graph RAG (src/)                  |
-|---------------|-------------------------|-----------------------------------|
-| Vector Store  | ChromaDB (local)        | Neo4j                             |
-| Chunking      | Theo Điều (regex)       | Entity-based                      |
-| Retrieval     | BM25 + SBERT -> RRF     | BM25 + SBERT + Graph Rerank       |
-| NER           | Không                   | BiLSTM (B-ARTICLE, I-ARTICLE)     |
-| Graph         | Không                   | Neo4j Knowledge Graph             |
-| Reranking     | RRF đơn giản            | Graph-aware reranking             |
-| LLM           | Gemini                  | Gemini                            |
-| Độ phức tạp   | Thấp                    | Cao                               |
-| Phù hợp      | Demo, prototype         | Production, nghiên cứu            |
 
 
