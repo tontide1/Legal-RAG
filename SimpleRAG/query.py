@@ -74,7 +74,7 @@ class HybridRetriever:
     def retrieve(self, query: str) -> list[dict]:
        # Hybrid retrieval: BM25 + semantic → RRF merge → top FINAL_TOP_K.
 
-        # --- BM25 ---
+        #  BM25 
         query_tokens = simple_tokenize(query)
         bm25_scores = self.bm25.get_scores(query_tokens)
         bm25_ranked = sorted(
@@ -82,7 +82,7 @@ class HybridRetriever:
         )[:BM25_TOP_K]
         bm25_list = [(self.all_ids[i], score) for i, score in bm25_ranked]
 
-        # --- Semantic (ChromaDB) ---
+        #  Semantic (ChromaDB) 
         query_emb = self.embed_model.encode([query])[0].tolist()
         sem_result = self.collection.query(
             query_embeddings=[query_emb],
@@ -94,7 +94,7 @@ class HybridRetriever:
             for j in range(len(sem_result["ids"][0]))
         ]
 
-        # --- RRF merge ---
+        #  RRF merge 
         fused = reciprocal_rank_fusion([bm25_list, sem_list])
         top_ids = [doc_id for doc_id, _ in fused[:FINAL_TOP_K]]
 
@@ -111,6 +111,13 @@ class HybridRetriever:
                 })
 
 SYSTEM_PROMPT = """Bạn là trợ lý pháp luật Việt Nam. 
+Dựa vào các trích đoạn văn bản pháp luật được cung cấp bên dưới, hãy trả lời câu hỏi của người dùng.
+
+QUY TẮC:
+1. Chỉ trả lời dựa trên thông tin trong các trích đoạn. Nếu không đủ thông tin, hãy nói rõ.
+2. Trích dẫn cụ thể Điều, Khoản, Điểm khi có thể.
+3. Trả lời bằng tiếng Việt, rõ ràng và chính xác.
+4. Nếu câu hỏi không liên quan đến pháp luật trong ngữ cảnh, hãy thông báo.
 """
 
 
@@ -119,7 +126,7 @@ def build_context(chunks: list[dict]) -> str:
     parts: list[str] = []
     for i, c in enumerate(chunks, 1):
         parts.append(
-            f"--- Trích đoạn {i} ---\n"
+            f" Trích đoạn {i} \n"
             f"Nguồn: {c['doc_name']}\n"
             f"Vị trí: {c['dieu']}\n"
             f"Nội dung:\n{c['text']}\n"
