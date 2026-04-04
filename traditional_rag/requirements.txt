@@ -1,0 +1,17 @@
+# Core dependencies for traditional RAG
+numpy>=1.21.0
+torch>=1.12.0
+sentence-transformers>=2.2.0
+nltk>=3.8.0
+
+# LangChain and Google AI
+langchain>=0.1.0
+langchain-google-genai>=1.0.0
+langchain-core>=0.1.0
+
+# Environment management
+python-dotenv>=1.0.0
+
+# Development and testing
+pytest>=7.0.0
+pytest-cov>=4.0.0
