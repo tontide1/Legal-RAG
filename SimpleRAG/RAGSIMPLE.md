@@ -27,7 +27,7 @@ Câu hỏi -> [BM25 + Semantic Search] -> RRF Merge -> Top-K Chunks -> Gemini ->
 
 ```
 SimpleRAG/
-|-- dataset/              # Dữ liệu pháp luật (.txt) - DÙNG CHUNG với Legal-RAG/dataset
+|-- dataset/           
 |   |-- Luật/
 |   |-- Nghị_Định/
 |   |-- Nghị_Quyết/
