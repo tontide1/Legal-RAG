@@ -14,7 +14,7 @@ DATASET_DIR = os.path.join(os.path.dirname(__file__), "dataset")
 CHROMA_DIR = os.path.join(os.path.dirname(__file__), "chroma_db")
 COLLECTION_NAME = "legal_chunks"
 EMBEDDING_MODEL = "keepitreal/vietnamese-sbert"
-CHUNK_MAX_CHARS = 3000         
+CHUNK_MAX_CHARS = 2500         
 CHUNK_OVERLAP_CHARS = 200   
 
 def collect_txt_files(root_dir: str) -> list[str]:
@@ -28,47 +28,7 @@ def _detect_doc_name(filepath: str) -> str:
     return parts[-1]
 
 
-def chunk_by_dieu(text: str, doc_name: str) -> list[dict]:
-    #Chia văn bản thành các chunk theo 'Điều <số>'.
-    #Mỗi chunk chứa nội dung của 1 Điều.
-    pattern = re.compile(r"(?:^|\n)(Điều\s+\d+[a-zđ]?\.?\s)", re.MULTILINE)
-    matches = list(pattern.finditer(text))
-    chunks: list[dict] = []
-    if not matches:
-        # Không tìm thấy Điều nào → chunk theo kích thước cố định
-        for sub in _split_long(text):
-            chunks.append({
-                "text": sub.strip(),
-                "doc_name": doc_name,
-                "dieu": "N/A",
-            })
-        return chunks
 
-    preamble = text[: matches[0].start()].strip()
-    if preamble:
-        for sub in _split_long(preamble):
-            chunks.append({
-                "text": sub.strip(),
-                "doc_name": doc_name,
-                "dieu": "Mở đầu",
-            })
-    for i, m in enumerate(matches):
-        start = m.start()
-        end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
-        section = text[start:end].strip()
-
-        # Trích tên Điều
-        dieu_match = re.match(r"(Điều\s+\d+[a-zđ]?)", section)
-        dieu_label = dieu_match.group(1) if dieu_match else f"Điều ?({i})"
-
-        for sub in _split_long(section):
-            chunks.append({
-                "text": sub.strip(),
-                "doc_name": doc_name,
-                "dieu": dieu_label,
-            })
-
-    return chunks
 
 
 def _split_long(text: str) -> list[str]:
