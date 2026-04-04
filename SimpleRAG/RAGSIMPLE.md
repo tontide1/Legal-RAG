@@ -160,12 +160,4 @@ lĩnh vực đặc biệt là 02 năm...
 | Độ phức tạp   | Thấp                    | Cao                               |
 | Phù hợp      | Demo, prototype         | Production, nghiên cứu            |
 
----
 
-## Lưu ý kỹ thuật
-
-1. Embedding space: Query và document phải dùng cùng model (keepitreal/vietnamese-sbert). Nếu đổi model, phải chạy lại ingest.py.
-2. ChromaDB lưu tại chroma_db/ - xóa thư mục này nếu muốn reset hoàn toàn.
-3. Thứ tự chạy: Luôn chạy ingest.py trước query.py.
-4. Dataset: Chỉ đọc file .txt. Nếu thêm/sửa file .txt trong dataset/, chạy lại ingest.py.
-5. File .env: KHÔNG cần tạo riêng. query.py tự động đọc từ Legal-RAG/.env (thư mục cha).
