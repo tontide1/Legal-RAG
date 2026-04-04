@@ -14,7 +14,7 @@ DATASET_DIR = os.path.join(os.path.dirname(__file__), "dataset")
 CHROMA_DIR = os.path.join(os.path.dirname(__file__), "chroma_db")
 COLLECTION_NAME = "legal_chunks"
 EMBEDDING_MODEL = "keepitreal/vietnamese-sbert"
-CHUNK_MAX_CHARS = 2000         
+CHUNK_MAX_CHARS = 3000         
 CHUNK_OVERLAP_CHARS = 200   
 
 def collect_txt_files(root_dir: str) -> list[str]:
@@ -31,8 +31,6 @@ def _detect_doc_name(filepath: str) -> str:
 def chunk_by_dieu(text: str, doc_name: str) -> list[dict]:
     #Chia văn bản thành các chunk theo 'Điều <số>'.
     #Mỗi chunk chứa nội dung của 1 Điều.
-    #Nếu Điều quá dài (> CHUNK_MAX_CHARS) sẽ split thêm với overlap.
-    #Phần đầu file (trước Điều đầu tiên) được giữ làm chunk 'preamble'.
     pattern = re.compile(r"(?:^|\n)(Điều\s+\d+[a-zđ]?\.?\s)", re.MULTILINE)
     matches = list(pattern.finditer(text))
     chunks: list[dict] = []
@@ -46,7 +44,6 @@ def chunk_by_dieu(text: str, doc_name: str) -> list[dict]:
             })
         return chunks
 
-    # Phần mở đầu (trước Điều đầu tiên)
     preamble = text[: matches[0].start()].strip()
     if preamble:
         for sub in _split_long(preamble):
@@ -55,8 +52,6 @@ def chunk_by_dieu(text: str, doc_name: str) -> list[dict]:
                 "doc_name": doc_name,
                 "dieu": "Mở đầu",
             })
-
-    # Từng Điều
     for i, m in enumerate(matches):
         start = m.start()
         end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
