@@ -2,6 +2,69 @@
 
 Pipeline hỏi đáp pháp luật tiếng Việt dùng Neo4j + NER + hybrid retrieval + Gemini.
 
+## Sơ đồ Pipeline
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        User Query (tiếng Việt)                          │
+└────────────────────────────┬────────────────────────────────────────────┘
+                             ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  1. NER (Named Entity Recognition)                                      │
+│     - PhoBERT / BiLSTM                                                  │
+│     - Trích xuất thực thể: "Điều <số>"                                  │
+└────────────────────────────┬────────────────────────────────────────────┘
+                             ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  2. Hybrid Retrieval                                                    │
+│     ┌──────────────────────────────────────────────────────────────┐    │
+│     │  BM25 (lexical matching)                                     │    │
+│     │  +                                                           │    │
+│     │  SBERT (vietnamese-sbert, cosine similarity)                 │    │
+│     │  → Combined Score → Candidate Pool (top-30)                  │    │
+│     └──────────────────────────────────────────────────────────────┘    │
+│                             ▼                                           │
+│     ┌──────────────────────────────────────────────────────────────┐    │
+│     │  Graph Rerank (iterative)                                    │    │
+│     │  - Graph embedding similarity trên candidate pool            │    │
+│     │  - final_score = combined_score + λ * graph_sum              │    │
+│     │  → Top-K kết quả (mặc định top-5)                            │    │
+│     └──────────────────────────────────────────────────────────────┘    │
+└────────────────────────────┬────────────────────────────────────────────┘
+                             ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  3. Context Building                                                    │
+│     - Ghép context từ retrieved nodes                                   │
+│     - Trích xuất citations                                              │
+└────────────────────────────┬────────────────────────────────────────────┘
+                             ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  4. Gemini Answer Generation                                            │
+│     - Prompt template: tư vấn luật Việt Nam                             │
+│     - Model: gemini-2.5-flash-lite                                      │
+│     - Output: câu trả lời + citations                                   │
+└────────────────────────────┬────────────────────────────────────────────┘
+                             ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        Kết quả trả về User                              │
+│     - NER entities  •  Retrieved nodes  •  Answer  •  Citations         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+## Công cụ, Thư viện & Nền tảng
+
+| Nhóm | Công nghệ | Mục đích |
+|------|-----------|----------|
+| **LLM** | Google Gemini (`gemini-2.5-flash-lite`) | Sinh câu trả lời tư vấn pháp luật |
+| **Graph DB** | Neo4j (Docker) | Lưu trữ đồ thị văn bản pháp luật |
+| **NLP** | PhoBERT, BiLSTM | Named Entity Recognition (NER) |
+| **Embedding** | `keepitreal/vietnamese-sbert` | Semantic embedding tiếng Việt |
+| **Retrieval** | BM25 (`rank-bm25`) | Lexical search |
+| **Framework** | LangChain, LangChain Google GenAI | Orchestration LLM chain |
+| **Deep Learning** | PyTorch, Torch-Geometric | Training & inference NER |
+| **UI** | Streamlit | Giao diện web demo |
+| **Khác** | python-dotenv, numpy, huggingface-hub | Tiện ích môi trường & data |
+
 ## Thành phần chính
 - `src/main.py`: CLI hỏi đáp pháp luật
 - `src/save_database/save_data.py`: nạp dữ liệu luật vào Neo4j
@@ -9,12 +72,6 @@ Pipeline hỏi đáp pháp luật tiếng Việt dùng Neo4j + NER + hybrid retr
 - `src/retrive/multi_retr.py`: retrieval BM25 + SBERT + graph rerank
 - `src/NER/ner.py`: BiLSTM NER cho span `Điều <số>`
 - `docker-compose.yml`: Neo4j local cho môi trường dev
-
-## Tài liệu chính
-- `docs/review_fix_plan.md`: tổng hợp các sửa lỗi kỹ thuật đã chốt
-- `docs/evaluation_metrics_plan.md`: kế hoạch đo lường retrieval/generation
-- `docs/mvp_plan.md`: kế hoạch MVP phù hợp cho demo và báo cáo đồ án
-- `docs/session_handoff.md`: trạng thái làm việc và việc nên làm tiếp theo
 
 ## Agent skills (Codex + OpenCode)
 - Skill hiện được mirror song song tại:
