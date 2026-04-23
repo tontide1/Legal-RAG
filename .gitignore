@@ -30,6 +30,8 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+plan_slide.md
+
 
 # Virtual environments
 venv/
