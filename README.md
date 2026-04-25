@@ -1,157 +1,94 @@
-# Legal-RAG
+# Traffic Law Assistant (Legal RAG)
 
-Pipeline hỏi đáp pháp luật tiếng Việt dùng Neo4j + NER + hybrid retrieval + Gemini.
+![App Screenshot](docs/AppScreenshot.png)
 
-## Sơ đồ Pipeline
+An advanced legal document assistant powered by **LightRAG**, localized for Vietnamese law and featuring high-fidelity Knowledge Graph visualization. This project uses **FastAPI** for the backend, **React** for the frontend, and **PostgreSQL (Apache AGE + pgvector)** for graph and vector storage.
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                        User Query (tiếng Việt)                          │
-└────────────────────────────┬────────────────────────────────────────────┘
-                             ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│  1. NER (Named Entity Recognition)                                      │
-│     - PhoBERT / BiLSTM                                                  │
-│     - Trích xuất thực thể: "Điều <số>"                                  │
-└────────────────────────────┬────────────────────────────────────────────┘
-                             ▼
-┌───────────────────────────────────────────────────── ────────────────────┐
-│  2. Hybrid Retrieval                                                    │
-│     ┌──────────────────────────────────────────────────────────────┐    │
-│     │  BM25 (lexical matching)                                     │    │
-│     │  +                                                           │    │
-│     │  SBERT (vietnamese-sbert, cosine similarity)                 │    │
-│     │  → Combined Score → Candidate Pool (top-30)                  │    │
-│     └──────────────────────────────────────────────────────────────┘    │
-│                             ▼                                           │
-│     ┌──────────────────────────────────────────────────────────────┐    │
-│     │  Graph Rerank (iterative)                                    │    │
-│     │  - Graph embedding similarity trên candidate pool            │    │
-│     │  - final_score = combined_score + λ * graph_sum              │    │
-│     │  → Top-K kết quả (mặc định top-5)                            │    │
-│     └──────────────────────────────────────────────────────────────┘    │
-└────────────────────────────┬────────────────────────────────────────────┘
-                             ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│  3. Context Building                                                    │
-│     - Ghép context từ retrieved nodes                                   │
-│     - Trích xuất citations                                              │
-└────────────────────────────┬────────────────────────────────────────────┘
-                             ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│  4. Gemini Answer Generation                                            │
-│     - Prompt template: tư vấn luật Việt Nam                             │
-│     - Model: gemini-2.5-flash-lite                                      │
-│     - Output: câu trả lời + citations                                   │
-└────────────────────────────┬────────────────────────────────────────────┘
-                             ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                        Kết quả trả về User                              │
-│     - NER entities  •  Retrieved nodes  •  Answer  •  Citations         │
-└─────────────────────────────────────────────────────────────────────────┘
-```
+## 🚀 Key Features
 
-## Công cụ, Thư viện & Nền tảng
+- **Vietnamese Legal Localization**: Specialized entity extraction for laws (*Điều khoản, Văn bản pháp luật, Cơ quan ban hành*).
+- **Vision-Based PDF Parsing**: Uses **Qwen 3 VL** (via OpenRouter) to extract raw legal text from PDFs with absolute fidelity, even for scans.
+- **Interactive Knowledge Graph**: Explore legal relationships via the integrated **LightRAG Graph UI** on port 8001.
 
-| Nhóm | Công nghệ | Mục đích |
-|------|-----------|----------|
-| **LLM** | Google Gemini (`gemini-2.5-flash-lite`) | Sinh câu trả lời tư vấn pháp luật |
-| **Graph DB** | Neo4j (Docker) | Lưu trữ đồ thị văn bản pháp luật |
-| **NLP** | PhoBERT, BiLSTM | Named Entity Recognition (NER) |
-| **Embedding** | `keepitreal/vietnamese-sbert` | Semantic embedding tiếng Việt |
-| **Retrieval** | BM25 (`rank-bm25`) | Lexical search |
-| **Framework** | LangChain, LangChain Google GenAI | Orchestration LLM chain |
-| **Deep Learning** | PyTorch, Torch-Geometric | Training & inference NER |
-| **UI** | Streamlit | Giao diện web demo |
-| **Khác** | python-dotenv, numpy, huggingface-hub | Tiện ích môi trường & data |
+  ![KG Screenshot 1](docs/KGScreenshot1.png)
+  ![KG Screenshot 2](docs/KGScreenshot2.png)
+- **Comparison Mode**: Side-by-side RAG evaluation with parallel streaming.
 
-## Thành phần chính
-- `src/main.py`: CLI hỏi đáp pháp luật
-- `src/save_database/save_data.py`: nạp dữ liệu luật vào Neo4j
-- `src/embedding/create_db.py`: tạo content embedding và graph embedding
-- `src/retrive/multi_retr.py`: retrieval BM25 + SBERT + graph rerank
-- `src/NER/ner.py`: BiLSTM NER cho span `Điều <số>`
-- `docker-compose.yml`: Neo4j local cho môi trường dev
+  ![Comparison 1](docs/Comparison1.png)
+  ![Comparison 2](docs/Comparison2.png)
+  ![Comparison 3](docs/Comparison3.png)
+  ![Comparison 4](docs/Comparison4.png)
+  ![Comparison 5](docs/Comparison5.png)
+- **Hybrid RAG Retrieval**: Combined vector and graph search for precise legal grounding.
+- **Modern Chat Interface**: Beautiful React UI with Markdown support and source citations.
+- **Document Inventory**: Manage and track the status of all indexed legal documents.
 
-## Agent skills (Codex + OpenCode)
-- Skill hiện được mirror song song tại:
-  - `.codex/skills/<skill-name>/SKILL.md`
-  - `.opencode/skills/<skill-name>/SKILL.md`
-- Nguồn chuẩn là `.codex/skills`; `.opencode/skills` phải đồng bộ 1-1.
-- Kiểm tra nhanh:
+## 🛠 Tech Stack
+
+- **Backend**: Python 3.11, FastAPI, `lightrag-hku`
+- **Frontend**: Vite, React, TypeScript, Tailwind CSS, Shadcn UI
+- **Database**: PostgreSQL with `pgvector` (Vector) and `Apache AGE` (Graph)
+- **LLM/Embeddings**: DeepSeek V3, Qwen 3 VL, OpenAI Embeddings (via OpenRouter)
+- **Deployment**: Docker Compose
+
+## 📦 Getting Started
+
+### Prerequisites
+
+- Docker and Docker Compose
+- OpenRouter API Key
+
+### Environment Setup
+
+Create a `.env` file in the root directory (refer to `.env.example`):
+
 ```bash
-python3 scripts/validate_skills.py --repo-root .
-python3 -m unittest tests.test_skill_validation
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DATABASE=law_assistant
+OPENROUTER_API_KEY=your_key_here
+LLM_MODEL=deepseek/deepseek-v3.2
+EMBEDDING_MODEL=openai/text-embedding-3-small
 ```
 
-## Yêu cầu
-- Python 3.11+
-- Conda environment `RAG`
-- Docker để chạy Neo4j local
+### Running the Application
 
-## Cài đặt
-```bash
-conda create -n RAG python=3.11 -y
-conda activate RAG
-python -m pip install --upgrade pip
-python -m pip install \
-  torch numpy python-dotenv neo4j rank-bm25 sentence-transformers \
-  langchain langchain-core langchain-google-genai huggingface-hub \
-  torch-geometric
-```
+1. **Start the Infrastructure**:
+   ```bash
+   docker compose up -d
+   ```
 
-## Cấu hình `.env`
-```env
-NEO4J_URI=bolt://localhost:7687
-NEO4J_USER=neo4j
-NEO4J_PASSWORD=your_neo4j_password
-GOOGLE_API_KEY=your_google_api_key
-GEMINI_MODEL=gemini-2.5-flash-lite
-HUGGINGFACEHUB_API_TOKEN=optional
-```
+2. **Start the Frontend (Locally)**:
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
 
-## Chạy Neo4j
-```bash
-docker compose up -d
-```
+The application will be available at:
+- **Main UI**: `http://localhost:5173`
+- **Backend API**: `http://localhost:8000`
+- **Graph Visualization**: `http://localhost:8001/webui`
 
-Neo4j UI:
-- `http://localhost:7474`
-- user: `neo4j`
-- password: lấy từ `NEO4J_PASSWORD`
+## 🧠 Architecture
 
-## Chạy project
-```bash
-conda activate RAG
-python src/save_database/save_data.py
-python src/embedding/create_db.py
-python src/main.py
-```
+The system consists of three main services:
+- `db`: Custom Postgres image with vector and graph extensions.
+- `backend`: Handles chat, PDF parsing, and document indexing.
+- `rag-ui`: Provides the Knowledge Graph visualization interface.
 
-## Chạy giao diện Streamlit
-```bash
-conda activate RAG
-streamlit run streamlit_app.py
-```
+## 🇻🇳 Localization Details
 
-Giao diện web sẽ mở tại `http://localhost:8501`.
+The RAG engine is optimized for Vietnamese:
+- `SUMMARY_LANGUAGE`: Set to `Vietnamese`.
+- `ENTITY_TYPES`: Custom legal taxonomy including *Hành vi vi phạm, Hình thức xử phạt, Khái niệm pháp lý*.
 
-## Test nhanh
-```bash
-conda activate RAG
-python -m unittest tests.test_pipeline_utils
-python -m py_compile src/main.py src/save_database/save_data.py src/embedding/create_db.py
-```
+## 🌍 Recommended Embedding Models
 
-## Ghi chú kỹ thuật
-- Neo4j app nodes hiện dùng label `LegalRAG`
-- Định danh node dùng `node_id = "{Label}::{Tên}"`
-- Gemini model mặc định hiện tại là `gemini-2.5-flash-lite`
-- NER hiện chỉ mạnh với span tham chiếu điều luật như `Điều 33`, chưa phải NER tổng quát cho mọi tên luật/văn bản
-- Nếu gặp lỗi `429 RESOURCE_EXHAUSTED`, nguyên nhân nằm ở quota/rate limit của Gemini API key
-- MVP hiện tại được định vị là legal Graph RAG lấy cảm hứng từ NAGphormer, chưa phải bản tái hiện đầy đủ bài nghiên cứu
+For the best performance with Vietnamese legal text, consider these alternative embedding models:
+- **[Qwen3-Embedding-8B](https://huggingface.co/Qwen/Qwen3-Embedding-8B)**: State-of-the-art multilingual embedding model.
+- **[GreenNode-Embedding-Large-VN-Mixed-V1](https://huggingface.co/GreenNode/GreenNode-Embedding-Large-VN-Mixed-V1)**: Specialized embedding for Vietnamese language tasks.
 
-## Lỗi thường gặp
-- **Thiếu `GOOGLE_API_KEY`**: Gemini không thể generate câu trả lời. Kiểm tra file `.env`.
-- **Thiếu `NEO4J_PASSWORD`**: Không thể kết nối Neo4j để retrieval. Kiểm tra file `.env` và đảm bảo Docker đang chạy.
-- **`429 RESOURCE_EXHAUSTED`**: Gemini API key đã vượt quota/rate limit. Đợi hoặc đổi API key khác.
+> [!NOTE]
+> While models like Qwen3 or GreenNode offer superior performance, **OpenAI's `text-embedding-3-small` (1536D)** was chosen as the default for this implementation to stay within the recommended vector dimension limits for efficient **pgvector HNSW indexing** without excessive memory overhead.
+
