@@ -17,7 +17,13 @@ class Settings(BaseSettings):
     
     OPENROUTER_API_KEY: Optional[str] = None
     
+    EMBEDDING_BACKEND: str = "openrouter"
     EMBEDDING_MODEL: str = "openai/text-embedding-3-small"
+    EMBEDDING_DIM: int = 1536
+    EMBEDDING_QUERY_INSTRUCTION: str = (
+        "Instruct: Given a Vietnamese legal question, retrieve relevant legal passages "
+        "that answer the question\nQuery: "
+    )
     LLM_MODEL: str = "gemini-3-flash-preview"
     
     SUMMARY_LANGUAGE: str = "Vietnamese"
