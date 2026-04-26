@@ -16,7 +16,13 @@ load_dotenv(_project_root / ".env")
 CHROMA_DIR = os.path.join(os.path.dirname(__file__), "chroma_db")
 COLLECTION_NAME = "legal_chunks"
 EMBEDDING_MODEL = "keepitreal/vietnamese-sbert"
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
+SUPPORTED_GEMINI_MODELS = [
+    "gemini-2.5-flash-lite",
+    "gemini-3-flash-preview",
+    "gemini-3-flash",
+    "gemini-3.1-flash-lite",
+]
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 
 SEMANTIC_TOP_K = 15       

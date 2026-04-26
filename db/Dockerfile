@@ -12,10 +12,10 @@ RUN apt-get update && apt-get install -y \
   && rm -rf /var/lib/apt/lists/*
 
 # Build and Install Apache AGE
-RUN git clone https://github.com/apache/age.git /tmp/age && \
-  cd /tmp/age && \
-  make install && \
-  rm -rf /tmp/age
+RUN git clone -b PG16 https://github.com/apache/age.git /tmp/age && \
+    cd /tmp/age && \
+    make install && \
+    rm -rf /tmp/age
 
 # Ensure standard extensions are available (pgvector is already in apt for pg16, but we'll ensure it's registered)
 RUN echo "shared_preload_libraries = 'age'" >> /usr/share/postgresql/postgresql.conf.sample

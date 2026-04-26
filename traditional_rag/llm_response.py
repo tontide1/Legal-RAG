@@ -11,13 +11,20 @@ from .embedding import TextEmbedder
 
 load_dotenv()
 
+SUPPORTED_GEMINI_MODELS = [
+    "gemini-2.5-flash-lite",
+    "gemini-3-flash-preview",
+    "gemini-3-flash",
+    "gemini-3.1-flash-lite",
+]
+
 
 class LLMResponseGenerator:
     """Class for generating responses using LLM based on retrieved context."""
 
     def __init__(
         self,
-        model_name: str = "gemini-2.5-flash-lite",
+        model_name: str = "gemini-3-flash-preview",
         temperature: float = 0.3,
         max_tokens: int = 500
     ):
