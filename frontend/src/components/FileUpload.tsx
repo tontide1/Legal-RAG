@@ -23,6 +23,7 @@ export default function FileUpload({ onSuccess }: FileUploadProps) {
     if (!file) return
 
     setStatus('uploading')
+    setMessage('')
     const formData = new FormData()
     formData.append('file', file)
 
@@ -32,13 +33,22 @@ export default function FileUpload({ onSuccess }: FileUploadProps) {
           'Content-Type': 'multipart/form-data',
         },
       })
+
+      if (response.data?.status !== 'success') {
+        throw new Error(response.data?.message || 'Upload failed')
+      }
+
       setStatus('success')
       setMessage(response.data.message)
       setFile(null)
       if (onSuccess) onSuccess()
     } catch (error: any) {
       setStatus('error')
-      setMessage(error.response?.data?.detail || 'Upload failed')
+      setMessage(
+        error.response?.data?.detail ||
+        error.message ||
+        'Cannot reach backend API. Make sure the backend is running on port 8000.'
+      )
     }
   }
 

@@ -132,10 +132,13 @@ async def list_documents():
 
 @router.post("/upload", response_model=UploadResponse)
 async def upload_file(file: UploadFile = File(...)):
-    if not file.filename.endswith(".pdf") and not file.filename.endswith(".txt"):
+    filename = file.filename or ""
+    lower_filename = filename.lower()
+
+    if not lower_filename.endswith(".pdf") and not lower_filename.endswith(".txt"):
         raise HTTPException(status_code=400, detail="Only PDF and TXT files are supported")
     
-    file_path = os.path.join(settings.LIGHTRAG_WORKING_DIR, file.filename)
+    file_path = os.path.join(settings.LIGHTRAG_WORKING_DIR, filename)
     os.makedirs(settings.LIGHTRAG_WORKING_DIR, exist_ok=True)
     
     with open(file_path, "wb") as buffer:
@@ -144,7 +147,7 @@ async def upload_file(file: UploadFile = File(...)):
     try:
         rag = RAGEngine.get_instance()
         
-        if file.filename.endswith(".pdf"):
+        if lower_filename.endswith(".pdf"):
             from backend.core.llm_services import qwen_vl_parse_pdf
             content = await qwen_vl_parse_pdf(file_path)
         else:
@@ -158,16 +161,12 @@ async def upload_file(file: UploadFile = File(...)):
         await rag.ainsert(content, file_paths=[file.filename])
             
         return UploadResponse(
-            filename=file.filename,
+            filename=filename,
             status="success",
             message=f"File uploaded and indexed via Qwen 3 VL ({len(content)} characters)"
         )
     except Exception as e:
-        return UploadResponse(
-            filename=file.filename,
-            status="error",
-            message=f"Failed to index file: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to index file: {str(e)}")
 
 @router.get("/health")
 async def health():
