@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     OPENROUTER_API_KEY: Optional[str] = None
     
     EMBEDDING_MODEL: str = "openai/text-embedding-3-small"
-    LLM_MODEL: str = "deepseek/deepseek-v3.2"
+    LLM_MODEL: str = "gemini-3-flash-preview"
     
     SUMMARY_LANGUAGE: str = "Vietnamese"
     ENTITY_TYPES: list[str] = [

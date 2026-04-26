@@ -27,7 +27,7 @@ Câu hỏi -> [BM25 + Semantic Search] -> RRF Merge -> Top-K Chunks -> Gemini ->
 
 ```
 SimpleRAG/
-|-- dataset/           
+|-- dataset/
 |   |-- Luật/
 |   |-- Nghị_Định/
 |   |-- Nghị_Quyết/
@@ -37,7 +37,7 @@ SimpleRAG/
 |-- ingest.py             # Script 1: Đọc + chunk + embedding + lưu ChromaDB
 |-- query.py              # Script 2: Interactive QA (BM25 + semantic + Gemini)
 |-- requirements.txt      # Dependencies
-+-- RAGSIMPLE.md         
++-- RAGSIMPLE.md
 ```
 
 ## Các thành phần chính
@@ -64,12 +64,11 @@ SimpleRAG/
 
 ### 4. Hybrid Retrieval (query.py)
 
-| Phương pháp  | Mô tả                                                              | Top-K  |
-|--------------|---------------------------------------------------------------------|--------|
-| BM25         | Lexical search - tốt cho truy vấn chứa tên Điều, số hiệu cụ thể   | 15     |
-| Semantic     | Vietnamese SBERT qua ChromaDB - tốt cho câu hỏi diễn đạt lại ý    | 15     |
-| RRF Merge    | Reciprocal Rank Fusion kết hợp 2 ranked list                       | Top 7  |
-
+| Phương pháp | Mô tả                                                           | Top-K |
+| ----------- | --------------------------------------------------------------- | ----- |
+| BM25        | Lexical search - tốt cho truy vấn chứa tên Điều, số hiệu cụ thể | 15    |
+| Semantic    | Vietnamese SBERT qua ChromaDB - tốt cho câu hỏi diễn đạt lại ý  | 15    |
+| RRF Merge   | Reciprocal Rank Fusion kết hợp 2 ranked list                    | Top 7 |
 
 ## Hướng dẫn chạy
 
@@ -81,7 +80,11 @@ SimpleRAG/
   File .env cần có:
   ```
   GOOGLE_API_KEY="..."
-  GEMINI_MODEL=gemini-2.5-flash-lite
+  GEMINI_MODEL=gemini-3-flash-preview
+  # Hoặc chọn một trong các model Gemini khác:
+  # GEMINI_MODEL=gemini-2.5-flash-lite
+  # GEMINI_MODEL=gemini-3-flash
+  # GEMINI_MODEL=gemini-3.1-flash-lite
   ```
 
 ### Bước 1: Cài dependencies
@@ -99,6 +102,7 @@ python ingest.py
 ```
 
 Output mẫu:
+
 ```
 [INFO] Tìm thấy 5 file .txt
    - Luật Hải quan/54.2014.QH13.txt
@@ -121,6 +125,7 @@ python query.py
 ```
 
 Ví dụ tương tác:
+
 ```
 ============================================================
   SIMPLE LEGAL RAG - Hỏi đáp pháp luật Việt Nam
@@ -144,3 +149,4 @@ lĩnh vực đặc biệt là 02 năm...
 ============================================================
 
 
+```
