@@ -1,5 +1,6 @@
 import os
 import openai
+import asyncio
 from typing import List, Union, Optional
 from backend.config import settings
 
@@ -37,6 +38,45 @@ class QwenEmbeddingFunc:
             )
             results.append(response.data[0].embedding)
         return np.array(results)
+
+
+class VietLegalHarrierEmbeddingFunc:
+    def __init__(self):
+        self.model_name = settings.EMBEDDING_MODEL
+        self.query_instruction = settings.EMBEDDING_QUERY_INSTRUCTION
+        self._model = None
+
+    def _get_model(self):
+        if self._model is None:
+            from sentence_transformers import SentenceTransformer
+
+            self._model = SentenceTransformer(self.model_name)
+        return self._model
+
+    def _is_query(self, text: str) -> bool:
+        stripped = text.strip()
+        return stripped.endswith("?") or stripped.lower().startswith(("ai ", "là gì", "thế nào", "khi nào", "bao giờ"))
+
+    def _prepare_text(self, text: str) -> str:
+        if self._is_query(text):
+            return f"{self.query_instruction}{text}"
+        return text
+
+    async def __call__(self, texts: List[str]):
+        import numpy as np
+
+        prepared_texts = [self._prepare_text(text) for text in texts]
+
+        def encode_batch():
+            model = self._get_model()
+            return model.encode(
+                prepared_texts,
+                normalize_embeddings=True,
+                convert_to_numpy=True,
+            )
+
+        embeddings = await asyncio.to_thread(encode_batch)
+        return np.array(embeddings)
 
 # OpenRouter LLM Wrapper for LightRAG
 async def deepseek_llm_func(
