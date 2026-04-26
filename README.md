@@ -30,7 +30,7 @@ An advanced legal document assistant powered by **LightRAG**, localized for Viet
 - **Backend**: Python 3.11, FastAPI, `lightrag-hku`
 - **Frontend**: Vite, React, TypeScript, Tailwind CSS, Shadcn UI
 - **Database**: PostgreSQL with `pgvector` (Vector) and `Apache AGE` (Graph)
-- **LLM/Embeddings**: Gemini 3 Flash, Qwen 3 VL, OpenAI Embeddings (via OpenRouter)
+- **LLM/Embeddings**: Gemini 3 Flash and Qwen 3 VL via OpenRouter, plus local Vietnamese legal embeddings with `mainguyen9/vietlegal-harrier-0.6b`
 - **Gemini response models**: `gemini-3-flash-preview` (default), plus optional `gemini-2.5-flash-lite`, `gemini-3-flash` and `gemini-3.1-flash-lite`
 - **Deployment**: Docker Compose
 
@@ -51,7 +51,9 @@ POSTGRES_PASSWORD=postgres
 POSTGRES_DATABASE=law_assistant
 OPENROUTER_API_KEY=your_key_here
 LLM_MODEL=gemini-3-flash-preview
-EMBEDDING_MODEL=openai/text-embedding-3-small
+EMBEDDING_BACKEND=sentence_transformers
+EMBEDDING_MODEL=mainguyen9/vietlegal-harrier-0.6b
+EMBEDDING_DIM=1024
 ```
 
 ### Running the Application
@@ -90,12 +92,14 @@ The RAG engine is optimized for Vietnamese:
 - `SUMMARY_LANGUAGE`: Set to `Vietnamese`.
 - `ENTITY_TYPES`: Custom legal taxonomy including _Hành vi vi phạm, Hình thức xử phạt, Khái niệm pháp lý_.
 
-## 🌍 Recommended Embedding Models
+## 🌍 Embedding Setup
 
-For the best performance with Vietnamese legal text, consider these alternative embedding models:
+This repository now supports a local Hugging Face embedding backend for Vietnamese legal retrieval:
 
-- **[Qwen3-Embedding-8B](https://huggingface.co/Qwen/Qwen3-Embedding-8B)**: State-of-the-art multilingual embedding model.
-- **[GreenNode-Embedding-Large-VN-Mixed-V1](https://huggingface.co/GreenNode/GreenNode-Embedding-Large-VN-Mixed-V1)**: Specialized embedding for Vietnamese language tasks.
+- **Primary legal embedding model**: **[mainguyen9/vietlegal-harrier-0.6b](https://huggingface.co/mainguyen9/vietlegal-harrier-0.6b)**
+- **Embedding backend**: `sentence-transformers`
+- **Vector dimension**: `1024`
+- **Query format**: instruction-style prefix via `EMBEDDING_QUERY_INSTRUCTION`
 
 > [!NOTE]
-> While models like Qwen3 or GreenNode offer superior performance, **OpenAI's `text-embedding-3-small` (1536D)** was chosen as the default for this implementation to stay within the recommended vector dimension limits for efficient **pgvector HNSW indexing** without excessive memory overhead.
+> Switching from `openai/text-embedding-3-small` (1536D) to `mainguyen9/vietlegal-harrier-0.6b` (1024D) requires a full reindex. Existing vector data must not be mixed across embedding spaces.
