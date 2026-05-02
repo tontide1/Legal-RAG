@@ -95,20 +95,16 @@ class TraditionalRAGPipeline:
         similar_chunks = self.embedder.find_similar_texts(
             query_embedding,
             self.chunk_embeddings,
-            self.chunk_texts,
             top_k=self.top_k
         )
 
         # Build result with metadata
         results = []
-        for text, score in similar_chunks:
-            # Find the original chunk metadata
-            for chunk in self.chunks:
-                if chunk["text"] == text:
-                    result_chunk = chunk.copy()
-                    result_chunk["score"] = score
-                    results.append(result_chunk)
-                    break
+        for idx, score in similar_chunks:
+            chunk = self.chunks[idx]
+            result_chunk = chunk.copy()
+            result_chunk["score"] = score
+            results.append(result_chunk)
 
         return results
 

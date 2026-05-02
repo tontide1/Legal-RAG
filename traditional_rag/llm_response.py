@@ -40,6 +40,12 @@ class LLMResponseGenerator:
         self.temperature = temperature
         self.max_tokens = max_tokens
 
+        if self.model_name not in SUPPORTED_GEMINI_MODELS:
+            raise ValueError(
+                f"Unsupported Gemini model '{self.model_name}'. "
+                f"Supported models: {', '.join(SUPPORTED_GEMINI_MODELS)}"
+            )
+
         # Get API key
         self.api_key = os.getenv("GOOGLE_API_KEY")
         if not self.api_key:

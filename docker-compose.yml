@@ -54,8 +54,8 @@ services:
       - POSTGRES_DATABASE=${POSTGRES_DATABASE}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - EMBEDDING_BACKEND=${EMBEDDING_BACKEND}
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
-      - EMBEDDING_DIM=${EMBEDDING_DIM}
+      - EMBEDDING_MODEL=${RAG_UI_EMBEDDING_MODEL:-openai/text-embedding-3-small}
+      - EMBEDDING_DIM=${RAG_UI_EMBEDDING_DIM:-1536}
       - EMBEDDING_QUERY_INSTRUCTION=${EMBEDDING_QUERY_INSTRUCTION}
       - LLM_MODEL=${LLM_MODEL}
       - LIGHTRAG_WORKING_DIR=/app/backend/data
@@ -73,7 +73,7 @@ services:
       - EMBEDDING_BINDING=openai
       - EMBEDDING_BINDING_API_KEY=${OPENROUTER_API_KEY}
       - EMBEDDING_BINDING_HOST=https://openrouter.ai/api/v1
-      - EMBEDDING_DIM=${EMBEDDING_DIM}
+      - EMBEDDING_DIM=${RAG_UI_EMBEDDING_DIM:-1536}
     command: lightrag-server --host 0.0.0.0 --port 8001 --working-dir /app/backend/data
     depends_on:
       - db

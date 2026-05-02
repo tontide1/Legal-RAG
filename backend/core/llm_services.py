@@ -110,7 +110,6 @@ async def deepseek_llm_func(
         "seed", "tools", "tool_choice", "parallel_tool_calls"
     ]
     api_kwargs = {k: v for k, v in kwargs.items() if k in allowed_params}
-    api_kwargs.setdefault("max_tokens", 1024)
     api_kwargs.setdefault("temperature", 0.3)
     api_kwargs.setdefault("n", 1)
     

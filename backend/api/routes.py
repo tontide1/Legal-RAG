@@ -158,12 +158,17 @@ async def upload_file(file: UploadFile = File(...)):
         if not content.strip():
             raise ValueError("File is empty or no text could be extracted")
 
-        await rag.ainsert(content, file_paths=[file.filename])
+        await rag.ainsert(content, file_paths=[filename])
             
         return UploadResponse(
             filename=filename,
             status="success",
-            message=f"File uploaded and indexed via Qwen 3 VL ({len(content)} characters)"
+            message=(
+                "PDF parsed by Qwen 3 VL and indexed with the configured embeddings "
+                f"({len(content)} characters)"
+                if lower_filename.endswith(".pdf")
+                else f"File indexed with the configured embeddings ({len(content)} characters)"
+            )
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to index file: {str(e)}")

@@ -93,20 +93,18 @@ class TextEmbedder:
         self,
         query_embedding: np.ndarray,
         text_embeddings: np.ndarray,
-        texts: List[str],
         top_k: int = 5
-    ) -> List[tuple[str, float]]:
+    ) -> List[tuple[int, float]]:
         """
         Find most similar texts to a query embedding.
 
         Args:
             query_embedding: Query embedding
             text_embeddings: Array of text embeddings to search
-            texts: Corresponding text strings
             top_k: Number of top results to return
 
         Returns:
-            List of (text, similarity_score) tuples
+            List of (index, similarity_score) tuples
         """
         if len(text_embeddings) == 0:
             return []
@@ -119,7 +117,7 @@ class TextEmbedder:
 
         results = []
         for idx in top_indices:
-            results.append((texts[idx], float(similarities[idx])))
+            results.append((int(idx), float(similarities[idx])))
 
         return results
 

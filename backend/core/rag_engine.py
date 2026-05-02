@@ -22,7 +22,7 @@ class RAGEngine:
 
         raise ValueError(
             f"Unsupported EMBEDDING_BACKEND='{settings.EMBEDDING_BACKEND}'. "
-            "Use 'openrouter' or 'sentence_transformers'."
+            "Use one of: 'openrouter', 'sentence_transformers', 'huggingface_local', 'local'."
         )
 
     @classmethod

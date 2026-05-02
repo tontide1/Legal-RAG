@@ -47,6 +47,13 @@ class Settings(BaseSettings):
             return [x.strip() for x in v.split(",")]
         return v
 
+    @field_validator("EMBEDDING_QUERY_INSTRUCTION", mode="before")
+    @classmethod
+    def normalize_embedding_query_instruction(cls, v):
+        if isinstance(v, str):
+            return v.replace("\\n", "\n")
+        return v
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 settings = Settings()

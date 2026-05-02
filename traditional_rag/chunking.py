@@ -5,11 +5,16 @@ from typing import List
 import nltk
 from nltk.tokenize import sent_tokenize
 
-# Download punkt tokenizer if not already downloaded
-try:
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    nltk.download('punkt')
+
+def ensure_punkt_available() -> None:
+    """Fail with a clear deployment-time error when punkt is unavailable."""
+    try:
+        nltk.data.find("tokenizers/punkt")
+    except LookupError as exc:
+        raise RuntimeError(
+            "NLTK punkt tokenizer is not installed. Install it during setup with "
+            "`python -m nltk.downloader punkt`."
+        ) from exc
 
 
 class TextChunker:
@@ -51,12 +56,13 @@ class TextChunker:
             if end < len(text):
                 # Look for sentence boundaries within the last 100 characters
                 search_start = max(start, end - 100)
+                ensure_punkt_available()
                 sentences = sent_tokenize(text[search_start:end])
 
                 if len(sentences) > 1:
-                    # Use the end of the last complete sentence
+                    # Break before the last sentence candidate to avoid cutting it mid-way.
                     last_sentence = sentences[-1]
-                    sentence_end = search_start + text[search_start:end].rfind(last_sentence) + len(last_sentence)
+                    sentence_end = search_start + text[search_start:end].rfind(last_sentence)
                     if sentence_end > start:
                         end = sentence_end
 

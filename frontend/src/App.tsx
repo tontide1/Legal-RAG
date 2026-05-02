@@ -34,9 +34,8 @@ function App() {
     checkBackendHealth()
     fetchDocuments()
 
-    // Poll backend health and document inventory every 10 seconds.
+    // Poll document inventory every 10 seconds and infer connectivity from the result.
     const interval = setInterval(() => {
-      checkBackendHealth()
       fetchDocuments()
     }, 10000)
 
