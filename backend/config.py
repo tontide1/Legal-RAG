@@ -17,8 +17,14 @@ class Settings(BaseSettings):
     
     OPENROUTER_API_KEY: Optional[str] = None
     
+    EMBEDDING_BACKEND: str = "openrouter"
     EMBEDDING_MODEL: str = "openai/text-embedding-3-small"
-    LLM_MODEL: str = "deepseek/deepseek-v3.2"
+    EMBEDDING_DIM: int = 1536
+    EMBEDDING_QUERY_INSTRUCTION: str = (
+        "Instruct: Given a Vietnamese legal question, retrieve relevant legal passages "
+        "that answer the question\nQuery: "
+    )
+    LLM_MODEL: str = "gemini-3-flash-preview"
     
     SUMMARY_LANGUAGE: str = "Vietnamese"
     ENTITY_TYPES: list[str] = [
@@ -39,6 +45,13 @@ class Settings(BaseSettings):
                 except:
                     pass
             return [x.strip() for x in v.split(",")]
+        return v
+
+    @field_validator("EMBEDDING_QUERY_INSTRUCTION", mode="before")
+    @classmethod
+    def normalize_embedding_query_instruction(cls, v):
+        if isinstance(v, str):
+            return v.replace("\\n", "\n")
         return v
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

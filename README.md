@@ -6,12 +6,13 @@ An advanced legal document assistant powered by **LightRAG**, localized for Viet
 
 ## 🚀 Key Features
 
-- **Vietnamese Legal Localization**: Specialized entity extraction for laws (*Điều khoản, Văn bản pháp luật, Cơ quan ban hành*).
+- **Vietnamese Legal Localization**: Specialized entity extraction for laws (_Điều khoản, Văn bản pháp luật, Cơ quan ban hành_).
 - **Vision-Based PDF Parsing**: Uses **Qwen 3 VL** (via OpenRouter) to extract raw legal text from PDFs with absolute fidelity, even for scans.
 - **Interactive Knowledge Graph**: Explore legal relationships via the integrated **LightRAG Graph UI** on port 8001.
 
   ![KG Screenshot 1](docs/KGScreenshot1.png)
   ![KG Screenshot 2](docs/KGScreenshot2.png)
+
 - **Comparison Mode**: Side-by-side RAG evaluation with parallel streaming.
 
   ![Comparison 1](docs/Comparison1.png)
@@ -19,6 +20,7 @@ An advanced legal document assistant powered by **LightRAG**, localized for Viet
   ![Comparison 3](docs/Comparison3.png)
   ![Comparison 4](docs/Comparison4.png)
   ![Comparison 5](docs/Comparison5.png)
+
 - **Hybrid RAG Retrieval**: Combined vector and graph search for precise legal grounding.
 - **Modern Chat Interface**: Beautiful React UI with Markdown support and source citations.
 - **Document Inventory**: Manage and track the status of all indexed legal documents.
@@ -28,7 +30,8 @@ An advanced legal document assistant powered by **LightRAG**, localized for Viet
 - **Backend**: Python 3.11, FastAPI, `lightrag-hku`
 - **Frontend**: Vite, React, TypeScript, Tailwind CSS, Shadcn UI
 - **Database**: PostgreSQL with `pgvector` (Vector) and `Apache AGE` (Graph)
-- **LLM/Embeddings**: DeepSeek V3, Qwen 3 VL, OpenAI Embeddings (via OpenRouter)
+- **LLM/Embeddings**: Gemini 3 Flash and Qwen 3 VL via OpenRouter, plus local Vietnamese legal embeddings with `mainguyen9/vietlegal-harrier-0.6b`
+- **Gemini response models**: `gemini-3-flash-preview` (default), plus optional `gemini-2.5-flash-lite`, `gemini-3-flash` and `gemini-3.1-flash-lite`
 - **Deployment**: Docker Compose
 
 ## 📦 Getting Started
@@ -47,13 +50,16 @@ POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 POSTGRES_DATABASE=law_assistant
 OPENROUTER_API_KEY=your_key_here
-LLM_MODEL=deepseek/deepseek-v3.2
-EMBEDDING_MODEL=openai/text-embedding-3-small
+LLM_MODEL=gemini-3-flash-preview
+EMBEDDING_BACKEND=sentence_transformers
+EMBEDDING_MODEL=mainguyen9/vietlegal-harrier-0.6b
+EMBEDDING_DIM=1024
 ```
 
 ### Running the Application
 
 1. **Start the Infrastructure**:
+
    ```bash
    docker compose up -d
    ```
@@ -66,6 +72,7 @@ EMBEDDING_MODEL=openai/text-embedding-3-small
    ```
 
 The application will be available at:
+
 - **Main UI**: `http://localhost:5173`
 - **Backend API**: `http://localhost:8000`
 - **Graph Visualization**: `http://localhost:8001/webui`
@@ -73,6 +80,7 @@ The application will be available at:
 ## 🧠 Architecture
 
 The system consists of three main services:
+
 - `db`: Custom Postgres image with vector and graph extensions.
 - `backend`: Handles chat, PDF parsing, and document indexing.
 - `rag-ui`: Provides the Knowledge Graph visualization interface.
@@ -80,15 +88,18 @@ The system consists of three main services:
 ## 🇻🇳 Localization Details
 
 The RAG engine is optimized for Vietnamese:
+
 - `SUMMARY_LANGUAGE`: Set to `Vietnamese`.
-- `ENTITY_TYPES`: Custom legal taxonomy including *Hành vi vi phạm, Hình thức xử phạt, Khái niệm pháp lý*.
+- `ENTITY_TYPES`: Custom legal taxonomy including _Hành vi vi phạm, Hình thức xử phạt, Khái niệm pháp lý_.
 
-## 🌍 Recommended Embedding Models
+## 🌍 Embedding Setup
 
-For the best performance with Vietnamese legal text, consider these alternative embedding models:
-- **[Qwen3-Embedding-8B](https://huggingface.co/Qwen/Qwen3-Embedding-8B)**: State-of-the-art multilingual embedding model.
-- **[GreenNode-Embedding-Large-VN-Mixed-V1](https://huggingface.co/GreenNode/GreenNode-Embedding-Large-VN-Mixed-V1)**: Specialized embedding for Vietnamese language tasks.
+This repository now supports a local Hugging Face embedding backend for Vietnamese legal retrieval:
+
+- **Primary legal embedding model**: **[mainguyen9/vietlegal-harrier-0.6b](https://huggingface.co/mainguyen9/vietlegal-harrier-0.6b)**
+- **Embedding backend**: `sentence-transformers`
+- **Vector dimension**: `1024`
+- **Query format**: instruction-style prefix via `EMBEDDING_QUERY_INSTRUCTION`
 
 > [!NOTE]
-> While models like Qwen3 or GreenNode offer superior performance, **OpenAI's `text-embedding-3-small` (1536D)** was chosen as the default for this implementation to stay within the recommended vector dimension limits for efficient **pgvector HNSW indexing** without excessive memory overhead.
-
+> Switching from `openai/text-embedding-3-small` (1536D) to `mainguyen9/vietlegal-harrier-0.6b` (1024D) requires a full reindex. Existing vector data must not be mixed across embedding spaces.

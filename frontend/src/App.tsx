@@ -5,23 +5,40 @@ import { Scale, Database, Shield, Share2, FileText, ExternalLink, Columns } from
 import client from './api/client'
 
 function App() {
-  const [dbStatus, setDbStatus] = useState<'connected' | 'disconnected'>('connected')
+  const [dbStatus, setDbStatus] = useState<'connected' | 'disconnected'>('disconnected')
   const [documents, setDocuments] = useState<any[]>([])
   const [comparisonMode, setComparisonMode] = useState(false)
+
+  const checkBackendHealth = async () => {
+    try {
+      await client.get('/health')
+      setDbStatus('connected')
+    } catch (error) {
+      setDbStatus('disconnected')
+    }
+  }
 
   const fetchDocuments = async () => {
     try {
       const response = await client.get('/documents')
       setDocuments(response.data)
+      setDbStatus('connected')
     } catch (error) {
+      setDbStatus('disconnected')
+      setDocuments([])
       console.error('Failed to fetch documents:', error)
     }
   }
 
   useEffect(() => {
+    checkBackendHealth()
     fetchDocuments()
-    // Poll for updates every 10 seconds if uploading
-    const interval = setInterval(fetchDocuments, 10000)
+
+    // Poll document inventory every 10 seconds and infer connectivity from the result.
+    const interval = setInterval(() => {
+      fetchDocuments()
+    }, 10000)
+
     return () => clearInterval(interval)
   }, [])
 
