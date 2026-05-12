@@ -3,19 +3,26 @@ from backend.api.schemas import ChatRequest, ChatResponse, ComparisonResponse, U
 from fastapi.responses import StreamingResponse
 import json
 import asyncio
-from lightrag import LightRAG, QueryParam
-from backend.core.rag_engine import RAGEngine
 import shutil
 import os
 from backend.config import settings
+from backend.core.document_processor import DocumentProcessor
 
 router = APIRouter()
 
-from typing import Union
+document_processor = DocumentProcessor()
+
+
+def get_rag_engine():
+    from backend.core.rag_engine import RAGEngine
+
+    return RAGEngine.get_instance()
 
 @router.post("/chat")
 async def chat(request: ChatRequest):
-    rag = RAGEngine.get_instance()
+    from lightrag import QueryParam
+
+    rag = get_rag_engine()
     print(f"DEBUG: Chat request received. message='{request.message[:20]}...', comparison_mode={request.comparison_mode}, stream={request.stream}")
     
     system_prompt = (
@@ -103,7 +110,7 @@ async def chat(request: ChatRequest):
 
 @router.get("/documents")
 async def list_documents():
-    rag = RAGEngine.get_instance()
+    rag = get_rag_engine()
     try:
         # Get documents from doc_status storage
         # Use get_docs_paginated to fetch all documents
@@ -141,37 +148,33 @@ async def upload_file(file: UploadFile = File(...)):
     file_path = os.path.join(settings.LIGHTRAG_WORKING_DIR, filename)
     os.makedirs(settings.LIGHTRAG_WORKING_DIR, exist_ok=True)
     
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    
     try:
-        rag = RAGEngine.get_instance()
-        
-        if lower_filename.endswith(".pdf"):
-            from backend.core.llm_services import qwen_vl_parse_pdf
-            content = await qwen_vl_parse_pdf(file_path)
-        else:
-            # Assume TXT
-            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                content = f.read()
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        rag = get_rag_engine()
+        content = await document_processor.extract_text(file_path)
 
         if not content.strip():
             raise ValueError("File is empty or no text could be extracted")
 
-        await rag.ainsert(content, file_paths=[filename])
+        await rag.ainsert(content, file_paths=[filename], split_by_character="\n\n")
             
         return UploadResponse(
             filename=filename,
             status="success",
             message=(
-                "PDF parsed by Qwen 3 VL and indexed with the configured embeddings "
-                f"({len(content)} characters)"
-                if lower_filename.endswith(".pdf")
-                else f"File indexed with the configured embeddings ({len(content)} characters)"
+                f"File indexed with the configured embeddings ({len(content)} characters)"
             )
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to index file: {str(e)}")
+    finally:
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        except Exception:
+            pass
 
 @router.get("/health")
 async def health():
