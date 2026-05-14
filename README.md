@@ -30,7 +30,7 @@ An advanced legal document assistant powered by **LightRAG**, localized for Viet
 - **Backend**: Python 3.11, FastAPI, `lightrag-hku`
 - **Frontend**: Vite, React, TypeScript, Tailwind CSS, Shadcn UI
 - **Database**: PostgreSQL with `pgvector` (Vector) and `Apache AGE` (Graph)
-- **LLM/Embeddings**: Gemini 3 Flash and Qwen 3 VL via OpenRouter, plus local Vietnamese legal embeddings with `mainguyen9/vietlegal-harrier-0.6b`
+- **LLM/Embeddings**: Gemini 3 Flash and Qwen 3 VL via OpenRouter, plus local Vietnamese legal embeddings with `huyydangg/DEk21_hcmute_embedding`
 - **Gemini response models**: `gemini-3-flash-preview` (default), plus optional `gemini-2.5-flash-lite`, `gemini-3-flash` and `gemini-3.1-flash-lite`
 - **Deployment**: Docker Compose
 
@@ -52,30 +52,52 @@ POSTGRES_DATABASE=law_assistant
 OPENROUTER_API_KEY=your_key_here
 LLM_MODEL=gemini-3-flash-preview
 EMBEDDING_BACKEND=sentence_transformers
-EMBEDDING_MODEL=mainguyen9/vietlegal-harrier-0.6b
-EMBEDDING_DIM=1024
+EMBEDDING_MODEL=huyydangg/DEk21_hcmute_embedding
+EMBEDDING_DIM=768
+EMBEDDING_DEVICE=cuda
 ```
 
 ### Running the Application
 
-1. **Start the Infrastructure**:
+Start the full app with Docker:
 
-   ```bash
-   docker compose up -d
-   ```
-
-2. **Start the Frontend (Locally)**:
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
+```bash
+docker compose up --build
+```
 
 The application will be available at:
 
-- **Main UI**: `http://localhost:5173`
+- **Main UI**: `http://localhost:3000`
 - **Backend API**: `http://localhost:8000`
 - **Graph Visualization**: `http://localhost:8001/webui`
+
+### Run With Docker Logs
+
+If you want the main UI and backend together while watching logs:
+
+```bash
+docker compose up --build frontend backend
+```
+
+In another terminal, follow logs:
+
+```bash
+docker compose logs -f frontend backend
+```
+
+If you want everything in the background:
+
+```bash
+docker compose up -d db backend frontend
+docker compose logs -f frontend backend
+```
+
+If you want the optional LightRAG Web UI too, start it explicitly because it is behind the `rag-ui` profile:
+
+```bash
+docker compose --profile rag-ui up -d rag-ui
+docker compose logs -f rag-ui
+```
 
 ## 🧠 Architecture
 
@@ -96,10 +118,14 @@ The RAG engine is optimized for Vietnamese:
 
 This repository now supports a local Hugging Face embedding backend for Vietnamese legal retrieval:
 
-- **Primary legal embedding model**: **[mainguyen9/vietlegal-harrier-0.6b](https://huggingface.co/mainguyen9/vietlegal-harrier-0.6b)**
+- **Primary legal embedding model**: **[huyydangg/DEk21_hcmute_embedding](https://huggingface.co/huyydangg/DEk21_hcmute_embedding)**
 - **Embedding backend**: `sentence-transformers`
-- **Vector dimension**: `1024`
+- **Vector dimension**: `768`
+- **Device**: `cuda`
 - **Query format**: instruction-style prefix via `EMBEDDING_QUERY_INSTRUCTION`
 
 > [!NOTE]
-> Switching from `openai/text-embedding-3-small` (1536D) to `mainguyen9/vietlegal-harrier-0.6b` (1024D) requires a full reindex. Existing vector data must not be mixed across embedding spaces.
+> Switching from the previous embedding space to `huyydangg/DEk21_hcmute_embedding` (768D) requires a full reindex. Existing vector data must not be mixed across embedding spaces.
+
+> [!IMPORTANT]
+> Docker GPU execution requires Docker Desktop GPU support plus an NVIDIA driver/runtime on the host. The backend service is configured with `gpus: all`, so you can inspect logs with `docker compose logs -f backend` while the embedding model runs inside the container.

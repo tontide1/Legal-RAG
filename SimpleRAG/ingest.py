@@ -13,7 +13,7 @@ from sentence_transformers import SentenceTransformer
 DATASET_DIR = os.path.join(os.path.dirname(__file__), "dataset")
 CHROMA_DIR = os.path.join(os.path.dirname(__file__), "chroma_db")
 COLLECTION_NAME = "legal_chunks"
-EMBEDDING_MODEL = "keepitreal/vietnamese-sbert"
+EMBEDDING_MODEL = "huyydangg/DEk21_hcmute_embedding"
 CHUNK_MAX_CHARS = 2000         
 CHUNK_OVERLAP_CHARS = 200   
 
@@ -121,7 +121,7 @@ def main() -> None:
     print(f"   (sau lọc trống: {len(all_chunks)} chunks)")
 
     print(f"\n[MODEL] Dang tai model embedding: {EMBEDDING_MODEL} ...")
-    model = SentenceTransformer(EMBEDDING_MODEL)
+    model = SentenceTransformer(EMBEDDING_MODEL, device="cuda")
 
     texts = [c["text"] for c in all_chunks]
     print("[EMBED] Dang tao embedding ...")

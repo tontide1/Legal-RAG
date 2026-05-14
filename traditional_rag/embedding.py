@@ -16,7 +16,7 @@ class TextEmbedder:
 
     def __init__(
         self,
-        model_name: str = "keepitreal/vietnamese-sbert",
+        model_name: str = "huyydangg/DEk21_hcmute_embedding",
         device: Optional[str] = None,
         cache_dir: Optional[str] = None
     ):
@@ -122,7 +122,7 @@ class TextEmbedder:
         return results
 
 
-def create_embedder(model_name: str = "keepitreal/vietnamese-sbert") -> TextEmbedder:
+def create_embedder(model_name: str = "huyydangg/DEk21_hcmute_embedding") -> TextEmbedder:
     """
     Factory function to create a TextEmbedder instance.
 

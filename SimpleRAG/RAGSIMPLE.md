@@ -51,7 +51,7 @@ SimpleRAG/
 
 ### 2. Embedding
 
-- Model: keepitreal/vietnamese-sbert (768 dimensions)
+- Model: huyydangg/DEk21_hcmute_embedding (768 dimensions)
 - Được thiết kế cho văn bản tiếng Việt
 - Cùng model cho cả document embedding và query embedding
 
@@ -111,7 +111,7 @@ Output mẫu:
    [CHUNK] Luật Hải quan/54.2014.QH13.txt: 105 chunk(s)
    ...
 [TONG] 450 chunks
-[MODEL] Đang tải model embedding: keepitreal/vietnamese-sbert ...
+[MODEL] Đang tải model embedding: huyydangg/DEk21_hcmute_embedding ...
 [EMBED] Đang tạo embedding ...
 [OK] Đã tạo 450 embedding (dim=768)
 [SAVE] Lưu vào ChromaDB ...

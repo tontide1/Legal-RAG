@@ -13,6 +13,13 @@ router = APIRouter()
 
 from typing import Union
 
+
+def _normalize_text_response(value) -> str:
+    if value is None:
+        return ""
+    text = str(value).strip()
+    return "" if text.lower() == "none" else text
+
 @router.post("/chat")
 async def chat(request: ChatRequest):
     rag = RAGEngine.get_instance()
@@ -50,11 +57,26 @@ async def chat(request: ChatRequest):
             try:
                 await queue.put(f"data: {json.dumps({'type': 'start', 'mode': mode})}\n\n")
                 generator = await gen_func
+                emitted = False
                 if hasattr(generator, '__aiter__'):
                     async for chunk in generator:
-                        await queue.put(f"data: {json.dumps({'type': 'chunk', 'mode': mode, 'content': chunk})}\n\n")
+                        normalized_chunk = _normalize_text_response(chunk)
+                        if not normalized_chunk:
+                            continue
+                        emitted = True
+                        await queue.put(f"data: {json.dumps({'type': 'chunk', 'mode': mode, 'content': normalized_chunk})}\n\n")
                 else:
-                    await queue.put(f"data: {json.dumps({'type': 'chunk', 'mode': mode, 'content': str(generator)})}\n\n")
+                    normalized_result = _normalize_text_response(generator)
+                    if normalized_result:
+                        emitted = True
+                        await queue.put(f"data: {json.dumps({'type': 'chunk', 'mode': mode, 'content': normalized_result})}\n\n")
+
+                if not emitted:
+                    fallback = await rag.aquery(full_query, param=QueryParam(mode=mode))
+                    normalized_fallback = _normalize_text_response(fallback)
+                    if not normalized_fallback:
+                        raise RuntimeError(f"{mode} query returned no content.")
+                    await queue.put(f"data: {json.dumps({'type': 'chunk', 'mode': mode, 'content': normalized_fallback})}\n\n")
             except Exception as e:
                 print(f"STREAM ERROR ({mode}): {str(e)}")
                 await queue.put(f"data: {json.dumps({'type': 'error', 'mode': mode, 'message': str(e)})}\n\n")
@@ -81,11 +103,25 @@ async def chat(request: ChatRequest):
             else:
                 # Standard single stream
                 generator = await rag.aquery(full_query, param=QueryParam(mode="hybrid", stream=True))
+                emitted = False
                 if hasattr(generator, '__aiter__'):
                     async for chunk in generator:
-                        yield f"data: {json.dumps({'type': 'chunk', 'mode': 'hybrid', 'content': chunk})}\n\n"
+                        normalized_chunk = _normalize_text_response(chunk)
+                        if not normalized_chunk:
+                            continue
+                        emitted = True
+                        yield f"data: {json.dumps({'type': 'chunk', 'mode': 'hybrid', 'content': normalized_chunk})}\n\n"
                 else:
-                    yield f"data: {json.dumps({'type': 'chunk', 'mode': 'hybrid', 'content': str(generator)})}\n\n"
+                    normalized_result = _normalize_text_response(generator)
+                    if normalized_result:
+                        emitted = True
+                        yield f"data: {json.dumps({'type': 'chunk', 'mode': 'hybrid', 'content': normalized_result})}\n\n"
+                if not emitted:
+                    fallback = await rag.aquery(full_query, param=QueryParam(mode="hybrid"))
+                    normalized_fallback = _normalize_text_response(fallback)
+                    if not normalized_fallback:
+                        raise RuntimeError("Hybrid query returned no content.")
+                    yield f"data: {json.dumps({'type': 'chunk', 'mode': 'hybrid', 'content': normalized_fallback})}\n\n"
                 yield f"data: {json.dumps({'type': 'done'})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"

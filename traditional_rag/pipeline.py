@@ -17,7 +17,7 @@ class TraditionalRAGPipeline:
         dataset_root: str | Path = "dataset",
         chunk_size: int = 1000,
         chunk_overlap: int = 200,
-        embedding_model: str = "keepitreal/vietnamese-sbert",
+        embedding_model: str = "huyydangg/DEk21_hcmute_embedding",
         llm_model: str = "gemini-3-flash-preview",
         top_k: int = 5
     ):

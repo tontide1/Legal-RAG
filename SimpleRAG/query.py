@@ -15,7 +15,7 @@ load_dotenv(_project_root / ".env")
 
 CHROMA_DIR = os.path.join(os.path.dirname(__file__), "chroma_db")
 COLLECTION_NAME = "legal_chunks"
-EMBEDDING_MODEL = "keepitreal/vietnamese-sbert"
+EMBEDDING_MODEL = "huyydangg/DEk21_hcmute_embedding"
 SUPPORTED_GEMINI_MODELS = [
     "gemini-2.5-flash-lite",
     "gemini-3-flash-preview",
@@ -74,7 +74,7 @@ class HybridRetriever:
 
         # Load embedding model
         print(f"[MODEL] Dang tai model: {EMBEDDING_MODEL} ...")
-        self.embed_model = SentenceTransformer(EMBEDDING_MODEL)
+        self.embed_model = SentenceTransformer(EMBEDDING_MODEL, device="cuda")
         print("[OK] Retriever san sang!\n")
 
     def retrieve(self, query: str) -> list[dict]:
