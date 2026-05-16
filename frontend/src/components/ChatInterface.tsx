@@ -16,6 +16,12 @@ interface Message {
   }
 }
 
+const normalizeChunkContent = (value: unknown): string => {
+  if (value == null) return ''
+  const text = String(value)
+  return text.trim().toLowerCase() === 'none' ? '' : text
+}
+
 export default function ChatInterface({ comparisonMode }: { comparisonMode: boolean }) {
   const [messages, setMessages] = useState<Message[]>([
     { id: 'initial', role: 'assistant', content: 'Hello! I am your Traffic Law Assistant. How can I help you today?' }
@@ -89,6 +95,9 @@ export default function ChatInterface({ comparisonMode }: { comparisonMode: bool
             const data = JSON.parse(trimmedLine.slice(6))
             
             if (data.type === 'chunk') {
+              const normalizedContent = normalizeChunkContent(data.content)
+              if (!normalizedContent) continue
+
               setMessages(prev => prev.map(msg => {
                 if (msg.id !== assistantMsgId) return msg
                 
@@ -96,16 +105,16 @@ export default function ChatInterface({ comparisonMode }: { comparisonMode: bool
                 if (data.mode === 'naive' && newMsg.comparison) {
                   newMsg.comparison = {
                     ...newMsg.comparison,
-                    naive: { ...newMsg.comparison.naive, content: newMsg.comparison.naive.content + data.content }
+                    naive: { ...newMsg.comparison.naive, content: newMsg.comparison.naive.content + normalizedContent }
                   }
                 } else if (data.mode === 'hybrid') {
                   if (newMsg.comparison) {
                     newMsg.comparison = {
                       ...newMsg.comparison,
-                      hybrid: { ...newMsg.comparison.hybrid, content: newMsg.comparison.hybrid.content + data.content }
+                      hybrid: { ...newMsg.comparison.hybrid, content: newMsg.comparison.hybrid.content + normalizedContent }
                     }
                   } else {
-                    newMsg.content = (newMsg.content || '') + data.content
+                    newMsg.content = (newMsg.content || '') + normalizedContent
                   }
                 }
                 return newMsg

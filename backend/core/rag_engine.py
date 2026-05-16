@@ -3,7 +3,7 @@ from lightrag import LightRAG
 from lightrag.utils import EmbeddingFunc
 from backend.core.llm_services import (
     QwenEmbeddingFunc,
-    VietLegalHarrierEmbeddingFunc,
+    LocalSentenceTransformerEmbeddingFunc,
     deepseek_llm_func,
 )
 from backend.config import settings
@@ -18,7 +18,7 @@ class RAGEngine:
         if backend == "openrouter":
             return QwenEmbeddingFunc()
         if backend in {"sentence_transformers", "huggingface_local", "local"}:
-            return VietLegalHarrierEmbeddingFunc()
+            return LocalSentenceTransformerEmbeddingFunc()
 
         raise ValueError(
             f"Unsupported EMBEDDING_BACKEND='{settings.EMBEDDING_BACKEND}'. "
@@ -43,9 +43,15 @@ class RAGEngine:
             cls._instance = LightRAG(
                 working_dir=settings.LIGHTRAG_WORKING_DIR,
                 llm_model_func=deepseek_llm_func,
+                llm_model_max_async=settings.LIGHTRAG_MAX_ASYNC,
+                embedding_func_max_async=settings.LIGHTRAG_EMBEDDING_MAX_ASYNC,
+                default_embedding_timeout=settings.LIGHTRAG_EMBEDDING_TIMEOUT,
+                max_parallel_insert=settings.LIGHTRAG_MAX_PARALLEL_INSERT,
+                chunk_token_size=settings.LIGHTRAG_CHUNK_SIZE,
+                chunk_overlap_token_size=settings.LIGHTRAG_CHUNK_OVERLAP_SIZE,
                 embedding_func=EmbeddingFunc(
                     embedding_dim=settings.EMBEDDING_DIM,
-                    max_token_size=512,
+                    max_token_size=settings.EMBEDDING_MAX_TOKEN_SIZE,
                     func=embedding_func,
                     model_name=settings.EMBEDDING_MODEL
                 ),

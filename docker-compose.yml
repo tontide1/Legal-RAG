@@ -1,6 +1,7 @@
 services:
   db:
-    build: ./db
+    image: zulfifazhar/light-postgres:latest
+    pull_policy: always
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -9,6 +10,12 @@ services:
       - "5435:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d law_assistant"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
 
   backend:
     build:
@@ -19,6 +26,7 @@ services:
     volumes:
       - ./backend:/app/backend
     environment:
+      - PYTHONUNBUFFERED=1
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DATABASE}
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
@@ -29,18 +37,44 @@ services:
       - EMBEDDING_BACKEND=${EMBEDDING_BACKEND}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL}
       - EMBEDDING_DIM=${EMBEDDING_DIM}
+      - EMBEDDING_DEVICE=${EMBEDDING_DEVICE}
       - EMBEDDING_QUERY_INSTRUCTION=${EMBEDDING_QUERY_INSTRUCTION}
       - LLM_MODEL=${LLM_MODEL}
       - LIGHTRAG_WORKING_DIR=/app/backend/data
       - SUMMARY_LANGUAGE=Vietnamese
       - 'ENTITY_TYPES=["Văn bản pháp luật", "Điều khoản", "Cơ quan ban hành", "Đối tượng áp dụng", "Hành vi vi phạm", "Hình thức xử phạt", "Thời hạn", "Khái niệm pháp lý"]'
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000/api
+      - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      backend:
+        condition: service_started
 
   rag-ui:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    profiles: ["rag-ui"]
     ports:
       - "8001:8001"
     volumes:
@@ -54,8 +88,9 @@ services:
       - POSTGRES_DATABASE=${POSTGRES_DATABASE}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - EMBEDDING_BACKEND=${EMBEDDING_BACKEND}
-      - EMBEDDING_MODEL=${RAG_UI_EMBEDDING_MODEL:-openai/text-embedding-3-small}
-      - EMBEDDING_DIM=${RAG_UI_EMBEDDING_DIM:-1536}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
+      - EMBEDDING_DIM=${EMBEDDING_DIM}
+      - EMBEDDING_DEVICE=${EMBEDDING_DEVICE}
       - EMBEDDING_QUERY_INSTRUCTION=${EMBEDDING_QUERY_INSTRUCTION}
       - LLM_MODEL=${LLM_MODEL}
       - LIGHTRAG_WORKING_DIR=/app/backend/data
@@ -73,10 +108,11 @@ services:
       - EMBEDDING_BINDING=openai
       - EMBEDDING_BINDING_API_KEY=${OPENROUTER_API_KEY}
       - EMBEDDING_BINDING_HOST=https://openrouter.ai/api/v1
-      - EMBEDDING_DIM=${RAG_UI_EMBEDDING_DIM:-1536}
+      - EMBEDDING_DIM=${EMBEDDING_DIM}
     command: lightrag-server --host 0.0.0.0 --port 8001 --working-dir /app/backend/data
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
 volumes:
   postgres_data:
