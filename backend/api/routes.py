@@ -7,6 +7,7 @@ import shutil
 import os
 from backend.config import settings
 from backend.core.document_processor import DocumentProcessor
+from backend.core.legal_chunker import chunk_markdown, chunks_to_strings
 
 router = APIRouter()
 
@@ -158,13 +159,22 @@ async def upload_file(file: UploadFile = File(...)):
         if not content.strip():
             raise ValueError("File is empty or no text could be extracted")
 
-        await rag.ainsert(content, file_paths=[filename], split_by_character="\n\n")
+        # Chunk by legal structure (Điều/Khoản/Điểm) instead of plain double-newline
+        chunks = chunk_markdown(content, source_file=filename)
+        chunk_texts = chunks_to_strings(chunks)
+
+        if not chunk_texts:
+            raise ValueError("No valid chunks could be extracted from the document")
+
+        print(f"[INFO] {filename}: {len(chunk_texts)} legal chunks produced.")
+        await rag.ainsert(chunk_texts, file_paths=[filename] * len(chunk_texts))
             
         return UploadResponse(
             filename=filename,
             status="success",
             message=(
-                f"File indexed with the configured embeddings ({len(content)} characters)"
+                f"File indexed with the configured embeddings "
+                f"({len(content)} characters, {len(chunk_texts)} legal chunks)"
             )
         )
     except Exception as e:

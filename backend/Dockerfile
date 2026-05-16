@@ -7,13 +7,18 @@ RUN apt-get update && apt-get install -y \
   libpq-dev \
   gcc \
   poppler-utils \
+  libgl1 \
+  libglib2.0-0 \
   && rm -rf /var/lib/apt/lists/*
 
 # Use uv for faster dependency installation
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
+# Install paddlepaddle from PaddlePaddle's official CPU index (not on PyPI)
+RUN pip install paddlepaddle==3.2.1 -i https://www.paddlepaddle.org.cn/packages/stable/cpu/
+
 COPY requirements.txt ./
-# Install dependencies using uv with BuildKit cache mount
+# Install remaining dependencies using uv with BuildKit cache mount
 RUN --mount=type=cache,target=/root/.cache/uv \
   uv pip install --system -r requirements.txt
 

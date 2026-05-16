@@ -1,7 +1,10 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pathlib import Path
 from typing import Optional
 import json
 from pydantic import field_validator
+
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/law_assistant"
@@ -17,9 +20,9 @@ class Settings(BaseSettings):
     
     OPENROUTER_API_KEY: Optional[str] = None
     
-    EMBEDDING_BACKEND: str = "openrouter"
-    EMBEDDING_MODEL: str = "openai/text-embedding-3-small"
-    EMBEDDING_DIM: int = 1536
+    EMBEDDING_BACKEND: str = "sentence_transformers"
+    EMBEDDING_MODEL: str = "mainguyen9/vietlegal-harrier-0.6b"
+    EMBEDDING_DIM: int = 1024
     EMBEDDING_QUERY_INSTRUCTION: str = (
         "Instruct: Given a Vietnamese legal question, retrieve relevant legal passages "
         "that answer the question\nQuery: "
@@ -33,6 +36,9 @@ class Settings(BaseSettings):
     ]
     
     LIGHTRAG_WORKING_DIR: str = "./backend/data"
+
+    # Path to Poppler bin directory (required on Windows, e.g. "poppler-24.11.0\Library\bin")
+    POPPLER_PATH: Optional[str] = None
 
     @field_validator("ENTITY_TYPES", mode="before")
     @classmethod
@@ -54,6 +60,6 @@ class Settings(BaseSettings):
             return v.replace("\\n", "\n")
         return v
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=BASE_DIR / ".env", extra="ignore")
 
 settings = Settings()

@@ -38,13 +38,15 @@ google-api-core>=2.0.0
 google-genai>=0.1.0
 
 # Document Processing
-pypdf>=4.0.0
+pymupdf4llm>=0.0.17          # Markdown extraction from text-based PDFs (primary)
+pypdf>=4.0.0                 # Fallback plain-text extraction
 python-docx>=1.1.0
 openpyxl>=3.1.0
 python-pptx>=0.6.0
 pdf2image>=1.17.0
-paddleocr>=2.8.0
-paddlepaddle>=3.2.1
+paddleocr                    # PP-OCRv5 / PP-OCRv3 for scan PDFs
+# paddlepaddle is installed via Dockerfile with custom index (see Dockerfile RUN step)
+# chandra_ocr                # Optional: Chandra OCR 2 fallback (install separately if needed)
 
 # Machine Learning / Embeddings
 transformers>=4.37.0
