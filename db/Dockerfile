@@ -1,7 +1,7 @@
-FROM postgres:16
+FROM postgres:16-bookworm
 
 # Install dependencies for building Apache AGE and pgvector
-RUN apt-get update && apt-get install -y \
+RUN apt-get update -o Acquire::Retries=5 && apt-get install -y --fix-missing --no-install-recommends \
   build-essential \
   git \
   postgresql-server-dev-16 \
@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
   && rm -rf /var/lib/apt/lists/*
 
 # Build and Install Apache AGE
-RUN git clone -b PG16 https://github.com/apache/age.git /tmp/age && \
+RUN git clone --depth 1 -b PG16 https://github.com/apache/age.git /tmp/age && \
     cd /tmp/age && \
     make install && \
     rm -rf /tmp/age

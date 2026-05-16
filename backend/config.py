@@ -16,15 +16,25 @@ class Settings(BaseSettings):
     REDIS_URL: Optional[str] = None
     
     OPENROUTER_API_KEY: Optional[str] = None
+    POPPLER_PATH: Optional[str] = None
     
-    EMBEDDING_BACKEND: str = "openrouter"
-    EMBEDDING_MODEL: str = "openai/text-embedding-3-small"
-    EMBEDDING_DIM: int = 1536
+    EMBEDDING_BACKEND: str = "sentence_transformers"
+    EMBEDDING_MODEL: str = "huyydangg/DEk21_hcmute_embedding"
+    EMBEDDING_DIM: int = 768
+    EMBEDDING_DEVICE: str = "cuda"
+    EMBEDDING_MAX_TOKEN_SIZE: int = 384
     EMBEDDING_QUERY_INSTRUCTION: str = (
         "Instruct: Given a Vietnamese legal question, retrieve relevant legal passages "
         "that answer the question\nQuery: "
     )
     LLM_MODEL: str = "gemini-3-flash-preview"
+    LLM_MAX_TOKENS: int = 2048
+    LIGHTRAG_MAX_ASYNC: int = 2
+    LIGHTRAG_EMBEDDING_MAX_ASYNC: int = 2
+    LIGHTRAG_EMBEDDING_TIMEOUT: int = 180
+    LIGHTRAG_MAX_PARALLEL_INSERT: int = 1
+    LIGHTRAG_CHUNK_SIZE: int = 800
+    LIGHTRAG_CHUNK_OVERLAP_SIZE: int = 100
     
     SUMMARY_LANGUAGE: str = "Vietnamese"
     ENTITY_TYPES: list[str] = [
