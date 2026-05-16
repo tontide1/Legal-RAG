@@ -128,6 +128,10 @@ async def deepseek_llm_func(
     else:
         api_kwargs["max_tokens"] = min(int(requested_max_tokens), settings.LLM_MAX_TOKENS)
     
+    # Cap max_tokens to prevent OpenRouter 402 Error (requesting too many tokens for current credits)
+    if "max_tokens" in api_kwargs and isinstance(api_kwargs["max_tokens"], int):
+        api_kwargs["max_tokens"] = min(api_kwargs["max_tokens"], 8192)
+    
     response = await client.chat.completions.create(
         model=settings.LLM_MODEL,
         messages=messages,

@@ -9,7 +9,8 @@ async def lifespan(app: FastAPI):
     # Initialize RAG Engine (Postgres pools, etc.)
     await RAGEngine.initialize()
     yield
-    # Shutdown logic if needed
+    # Shutdown logic: Cleanly close DB connections
+    await RAGEngine.finalize()
 
 app = FastAPI(
     title="Traffic Law Assistant API",
