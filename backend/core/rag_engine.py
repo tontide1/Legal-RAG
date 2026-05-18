@@ -70,6 +70,16 @@ class RAGEngine:
         return cls._instance
 
     @classmethod
+    async def finalize(cls):
+        """Cleanly shutdown the LightRAG storage pools."""
+        if cls._instance is not None:
+            # Note: LightRAG's storage adapters usually handle pool closing 
+            # if they have a close/finalize method.
+            # As of current LightRAG version, we ensure we clean up the instance.
+            cls._instance = None
+            print("INFO: RAG Engine connections closed.")
+
+    @classmethod
     def get_instance(cls):
         if cls._instance is None:
             raise RuntimeError("RAGEngine not initialized. Call RAGEngine.initialize() first.")

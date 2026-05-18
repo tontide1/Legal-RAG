@@ -1,7 +1,10 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pathlib import Path
 from typing import Optional
 import json
 from pydantic import field_validator
+
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/law_assistant"
@@ -44,6 +47,9 @@ class Settings(BaseSettings):
     
     LIGHTRAG_WORKING_DIR: str = "./backend/data"
 
+    # Path to Poppler bin directory (required on Windows, e.g. "poppler-24.11.0\Library\bin")
+    POPPLER_PATH: Optional[str] = None
+
     @field_validator("ENTITY_TYPES", mode="before")
     @classmethod
     def parse_entity_types(cls, v):
@@ -64,6 +70,6 @@ class Settings(BaseSettings):
             return v.replace("\\n", "\n")
         return v
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=BASE_DIR / ".env", extra="ignore")
 
 settings = Settings()
