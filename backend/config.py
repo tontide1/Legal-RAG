@@ -19,7 +19,14 @@ class Settings(BaseSettings):
     REDIS_URL: Optional[str] = None
     
     OPENROUTER_API_KEY: Optional[str] = None
+    GOOGLE_API_KEY: Optional[str] = None
     POPPLER_PATH: Optional[str] = None
+    OLLAMA_BASE_URL: str = "http://host.docker.internal:11434"
+    OLLAMA_INDEX_MODEL: str = "qwen2.5:3b"
+    OLLAMA_NUM_CTX: int = 8192
+    OLLAMA_TIMEOUT_SECONDS: int = 180
+    OLLAMA_MAX_RETRIES: int = 2
+    OLLAMA_RETRY_DELAY_SECONDS: int = 5
     
     EMBEDDING_BACKEND: str = "sentence_transformers"
     EMBEDDING_MODEL: str = "huyydangg/DEk21_hcmute_embedding"
@@ -30,14 +37,15 @@ class Settings(BaseSettings):
         "Instruct: Given a Vietnamese legal question, retrieve relevant legal passages "
         "that answer the question\nQuery: "
     )
-    LLM_MODEL: str = "gemini-3-flash-preview"
-    LLM_MAX_TOKENS: int = 2048
-    LIGHTRAG_MAX_ASYNC: int = 2
+    LLM_MODEL: str = "gemini-3.1-flash-lite"
+    LLM_MAX_TOKENS: int = 1024
+    LIGHTRAG_MAX_ASYNC: int = 1
     LIGHTRAG_EMBEDDING_MAX_ASYNC: int = 2
     LIGHTRAG_EMBEDDING_TIMEOUT: int = 180
     LIGHTRAG_MAX_PARALLEL_INSERT: int = 1
-    LIGHTRAG_CHUNK_SIZE: int = 800
+    LIGHTRAG_CHUNK_SIZE: int = 600
     LIGHTRAG_CHUNK_OVERLAP_SIZE: int = 100
+    GEMINI_MAX_RETRIES: int = 6
     
     SUMMARY_LANGUAGE: str = "Vietnamese"
     ENTITY_TYPES: list[str] = [

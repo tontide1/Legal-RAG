@@ -13,14 +13,14 @@ class FakeEmbeddingFunc:
 
 
 class FakeLightRAG:
-    init_kwargs = None
-    storages_initialized = False
+    init_kwargs = []
+    storages_initialized = 0
 
     def __init__(self, **kwargs):
-        FakeLightRAG.init_kwargs = kwargs
+        FakeLightRAG.init_kwargs.append(kwargs)
 
     async def initialize_storages(self):
-        FakeLightRAG.storages_initialized = True
+        FakeLightRAG.storages_initialized += 1
 
 
 def test_initialize_warms_embedding_model_and_sets_timeout(monkeypatch):
@@ -49,17 +49,35 @@ def test_initialize_warms_embedding_model_and_sets_timeout(monkeypatch):
         POSTGRES_PASSWORD="pass",
         POSTGRES_DATABASE="db",
         LIGHTRAG_WORKING_DIR="/tmp",
+        LIGHTRAG_MAX_ASYNC=1,
+        LIGHTRAG_EMBEDDING_MAX_ASYNC=2,
+        LIGHTRAG_EMBEDDING_TIMEOUT=180,
+        LIGHTRAG_MAX_PARALLEL_INSERT=1,
+        LIGHTRAG_CHUNK_SIZE=800,
+        LIGHTRAG_CHUNK_OVERLAP_SIZE=100,
         EMBEDDING_DIM=1024,
+        EMBEDDING_MAX_TOKEN_SIZE=384,
         EMBEDDING_MODEL="fake-model",
+        LLM_MODEL="gemini-3.1-flash-lite",
+        LLM_MAX_TOKENS=1024,
+        OLLAMA_INDEX_MODEL="qwen2.5:3b",
+        OLLAMA_NUM_CTX=32768,
         SUMMARY_LANGUAGE="vi",
         ENTITY_TYPES=["person"],
     ))
 
-    rag_engine.RAGEngine._instance = None
+    rag_engine.RAGEngine._query_instance = None
+    rag_engine.RAGEngine._ingest_instance = None
+    FakeLightRAG.init_kwargs = []
+    FakeLightRAG.storages_initialized = 0
     asyncio.run(rag_engine.RAGEngine.initialize())
 
-    assert FakeLightRAG.init_kwargs["default_embedding_timeout"] == 180
-    assert FakeLightRAG.storages_initialized is True
+    assert len(FakeLightRAG.init_kwargs) == 2
+    assert FakeLightRAG.init_kwargs[0]["default_embedding_timeout"] == 180
+    assert FakeLightRAG.init_kwargs[0]["llm_model_kwargs"] == {}
+    assert FakeLightRAG.init_kwargs[1]["llm_model_name"] == "qwen2.5:3b"
+    assert FakeLightRAG.init_kwargs[1]["llm_model_kwargs"] == {"options": {"num_ctx": 32768}}
+    assert FakeLightRAG.storages_initialized == 2
 
 
 def test_embedding_func_warms_model_on_init(monkeypatch):
@@ -68,17 +86,19 @@ def test_embedding_func_warms_model_on_init(monkeypatch):
     calls = []
 
     class FakeSentenceTransformer:
-        def __init__(self, model_name):
-            calls.append(model_name)
+        def __init__(self, model_name, device=None):
+            calls.append((model_name, device))
 
     monkeypatch.setattr(llm_services, "settings", types.SimpleNamespace(
         EMBEDDING_MODEL="fake-model",
+        EMBEDDING_DEVICE="cpu",
         EMBEDDING_QUERY_INSTRUCTION="Query: ",
         OPENROUTER_API_KEY="key",
         LLM_MODEL="llm",
     ))
+    monkeypatch.setitem(sys.modules, "torch", types.SimpleNamespace(cuda=types.SimpleNamespace(is_available=lambda: False)))
     monkeypatch.setitem(sys.modules, "sentence_transformers", types.SimpleNamespace(SentenceTransformer=FakeSentenceTransformer))
 
-    llm_services.VietLegalHarrierEmbeddingFunc()
+    llm_services.LocalSentenceTransformerEmbeddingFunc()._get_model()
 
-    assert calls == ["fake-model"]
+    assert calls == [("fake-model", "cpu")]

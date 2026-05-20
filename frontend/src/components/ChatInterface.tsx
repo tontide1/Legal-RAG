@@ -274,7 +274,7 @@ export default function ChatInterface({ comparisonMode }: { comparisonMode: bool
           </button>
         </div>
         <p className="text-[10px] text-center text-muted-foreground mt-3">
-          Powered by LightRAG & DeepSeek. Citations are derived from the uploaded legal database.
+          Powered by LightRAG & Gemini. Citations are derived from the uploaded legal database.
         </p>
       </div>
     </div>

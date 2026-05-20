@@ -19,14 +19,13 @@ RUN pip install paddlepaddle==3.2.1 -i https://www.paddlepaddle.org.cn/packages/
 
 COPY requirements.txt ./
 
-# Install CUDA-enabled PyTorch from the official PyTorch wheel index first.
-# We keep this separate from the generic requirements install to avoid uv
-# pulling the newest CUDA 13 stack, which is much heavier and has been flaky
-# to extract in Docker Desktop on Windows.
+# Install CPU-only PyTorch for Docker stability.
+# The container now defaults to CPU execution so `docker compose up`
+# works reliably on Windows Docker Desktop without CUDA/runtime issues.
 RUN python -m pip install --no-cache-dir --upgrade pip && \
   python -m pip install --no-cache-dir \
   torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 \
-  --index-url https://download.pytorch.org/whl/cu121
+  --index-url https://download.pytorch.org/whl/cpu
 
 # Install the remaining dependencies using uv with BuildKit cache mount,
 # excluding torch packages that were installed explicitly above.

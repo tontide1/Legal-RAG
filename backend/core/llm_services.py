@@ -1,20 +1,44 @@
-import os
-import openai
 import asyncio
-from typing import List, Union, Optional
+import openai
+import re
+from typing import List, Optional
+from google import genai
+from google.genai import types
+from ollama import AsyncClient as OllamaAsyncClient
 from backend.config import settings
 
-# Global client cache to avoid pickling issues and redundant connections
-_async_client: Optional[openai.AsyncOpenAI] = None
+# Global client caches to avoid redundant connections
+_openrouter_client: Optional[openai.AsyncOpenAI] = None
+_gemini_client: Optional[genai.Client] = None
+_ollama_client: Optional[OllamaAsyncClient] = None
+_gemini_request_semaphore = asyncio.Semaphore(1)
 
-def get_openai_client():
-    global _async_client
-    if _async_client is None:
-        _async_client = openai.AsyncOpenAI(
+def get_openrouter_client():
+    global _openrouter_client
+    if _openrouter_client is None:
+        _openrouter_client = openai.AsyncOpenAI(
             api_key=settings.OPENROUTER_API_KEY,
             base_url="https://openrouter.ai/api/v1"
         )
-    return _async_client
+    return _openrouter_client
+
+def get_gemini_client():
+    global _gemini_client
+    if _gemini_client is None:
+        if not settings.GOOGLE_API_KEY:
+            raise RuntimeError(
+                "GOOGLE_API_KEY is not configured. Set GOOGLE_API_KEY in .env "
+                "to enable Gemini chat generation."
+            )
+        _gemini_client = genai.Client(api_key=settings.GOOGLE_API_KEY)
+    return _gemini_client
+
+
+def get_ollama_client():
+    global _ollama_client
+    if _ollama_client is None:
+        _ollama_client = OllamaAsyncClient(host=settings.OLLAMA_BASE_URL)
+    return _ollama_client
 
 class QwenEmbeddingFunc:
     def __init__(self):
@@ -27,7 +51,7 @@ class QwenEmbeddingFunc:
 
     async def __call__(self, texts: List[str]):
         import numpy as np
-        client = get_openai_client()
+        client = get_openrouter_client()
         results = []
         for text in texts:
             prefix = self._get_prefix(is_query=text.strip().endswith("?"))
@@ -87,73 +111,225 @@ class LocalSentenceTransformerEmbeddingFunc:
 
         embeddings = await asyncio.to_thread(encode_batch)
         return np.array(embeddings)
+def _build_gemini_prompt(
+    prompt: str,
+    system_prompt: str | None = None,
+    history: List[dict] | None = None,
+) -> str:
+    sections: list[str] = []
+    if system_prompt:
+        sections.append(f"[System]\n{system_prompt.strip()}")
 
-# OpenRouter LLM Wrapper for LightRAG
-async def deepseek_llm_func(
+    if history:
+        history_lines: list[str] = []
+        for item in history:
+            role = str(item.get("role", "user")).strip() or "user"
+            content = str(item.get("content", "")).strip()
+            if content:
+                history_lines.append(f"{role.title()}: {content}")
+        if history_lines:
+            sections.append("[History]\n" + "\n".join(history_lines))
+
+    sections.append(f"[User]\n{prompt.strip()}")
+    return "\n\n".join(sections)
+
+
+def _build_ollama_index_system_prompt(system_prompt: str | None) -> str:
+    strict_format_prompt = (
+        "STRICT OUTPUT RULES:\n"
+        "- Return only records in the exact extraction format requested.\n"
+        "- Do not add explanations, markdown, comments, or code fences.\n"
+        "- Do not invent extra columns or fields.\n"
+        "- If a field contains punctuation, keep it inside the field text instead of splitting it.\n"
+        "- If unsure, return fewer well-formed records rather than malformed output."
+    )
+
+    if system_prompt and system_prompt.strip():
+        return f"{system_prompt.strip()}\n\n{strict_format_prompt}"
+    return strict_format_prompt
+
+
+def _looks_malformed_extraction_output(response_text: str) -> bool:
+    lowered = response_text.lower()
+    malformed_markers = (
+        "```",
+        "here is",
+        "dưới đây",
+        "giải thích",
+        "explanation",
+    )
+    return any(marker in lowered for marker in malformed_markers)
+
+
+def _extract_retry_delay_seconds(error: Exception) -> float:
+    message = str(error)
+    retry_match = re.search(r"retry in ([0-9]+(?:\.[0-9]+)?)s", message, re.IGNORECASE)
+    if retry_match:
+        return max(float(retry_match.group(1)), 1.0)
+    return 15.0
+
+
+def _is_gemini_rate_limit_error(error: Exception) -> bool:
+    message = str(error)
+    return "429" in message or "RESOURCE_EXHAUSTED" in message
+
+
+async def _gemini_generate_with_retry(client: genai.Client, **request_kwargs):
+    last_error: Exception | None = None
+
+    for attempt in range(1, settings.GEMINI_MAX_RETRIES + 1):
+        try:
+            async with _gemini_request_semaphore:
+                return await client.aio.models.generate_content(**request_kwargs)
+        except Exception as error:
+            last_error = error
+            if not _is_gemini_rate_limit_error(error) or attempt >= settings.GEMINI_MAX_RETRIES:
+                raise
+
+            delay_seconds = _extract_retry_delay_seconds(error)
+            print(
+                f"LLM RATE LIMIT: Gemini quota hit on attempt {attempt}/"
+                f"{settings.GEMINI_MAX_RETRIES}. Waiting {delay_seconds:.1f}s before retry."
+            )
+            await asyncio.sleep(delay_seconds)
+
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("Gemini request failed without returning a response.")
+
+async def gemini_chat_llm_func(
     prompt: str,
     system_prompt: str = None,
     history: List[dict] = None,
     **kwargs
 ) -> str:
-    client = get_openai_client()
-    
-    messages = []
-    if system_prompt:
-        messages.append({"role": "system", "content": system_prompt})
-    
-    if history:
-        messages.extend(history)
-        
-    messages.append({"role": "user", "content": prompt})
-    
-    # OpenRouter specific headers
-    extra_headers = {
-        "HTTP-Referer": "https://github.com/traffic/law-assistant",
-        "X-Title": "Traffic Law Assistant",
-    }
-    
-    # Filter out kwargs that are for LightRAG internal use or not accepted by OpenAI
-    # LightRAG sometimes passes 'hashing_kv' or other parameters for its internal caching logic
-    allowed_params = [
-        "model", "messages", "stream", "temperature", "top_p", "n", "stop", "max_tokens",
-        "presence_penalty", "frequency_penalty", "logit_bias", "user", "response_format",
-        "seed", "tools", "tool_choice", "parallel_tool_calls"
-    ]
-    api_kwargs = {k: v for k, v in kwargs.items() if k in allowed_params}
-    api_kwargs.setdefault("temperature", 0.3)
-    api_kwargs.setdefault("n", 1)
-    requested_max_tokens = api_kwargs.get("max_tokens")
-    if requested_max_tokens is None:
-        api_kwargs["max_tokens"] = settings.LLM_MAX_TOKENS
-    else:
-        api_kwargs["max_tokens"] = min(int(requested_max_tokens), settings.LLM_MAX_TOKENS)
-    
-    # Cap max_tokens to prevent OpenRouter 402 Error (requesting too many tokens for current credits)
-    if "max_tokens" in api_kwargs and isinstance(api_kwargs["max_tokens"], int):
-        api_kwargs["max_tokens"] = min(api_kwargs["max_tokens"], 8192)
-    
-    response = await client.chat.completions.create(
-        model=settings.LLM_MODEL,
-        messages=messages,
-        extra_headers=extra_headers,
-        **api_kwargs
+    client = get_gemini_client()
+    request_text = _build_gemini_prompt(
+        prompt,
+        system_prompt=system_prompt,
+        history=history,
     )
-    
-    if api_kwargs.get("stream"):
+
+    requested_max_tokens = kwargs.get("max_tokens")
+    if requested_max_tokens is None:
+        max_output_tokens = settings.LLM_MAX_TOKENS
+    else:
+        max_output_tokens = min(int(requested_max_tokens), settings.LLM_MAX_TOKENS)
+
+    generation_config = types.GenerateContentConfig(
+        temperature=float(kwargs.get("temperature", 0.3)),
+        top_p=kwargs.get("top_p"),
+        max_output_tokens=max_output_tokens,
+        stop_sequences=kwargs.get("stop"),
+    )
+
+    if kwargs.get("stream"):
         async def stream_generator():
-            print("LLM: Starting stream generator")
+            print("LLM: Starting Gemini stream generator")
             try:
-                async for chunk in response:
-                    if chunk.choices and chunk.choices[0].delta.content:
-                        c = chunk.choices[0].delta.content
+                async with _gemini_request_semaphore:
+                    stream = await client.aio.models.generate_content_stream(
+                        model=settings.LLM_MODEL,
+                        contents=request_text,
+                        config=generation_config,
+                    )
+                async for chunk in stream:
+                    c = getattr(chunk, "text", None)
+                    if c:
                         print(f"LLM CHUNK: {c}")
                         yield c
             except Exception as e:
                 print(f"LLM STREAM ERROR: {str(e)}")
-            print("LLM: Stream generator finished")
+            print("LLM: Gemini stream generator finished")
         return stream_generator()
-    else:
-        return response.choices[0].message.content
+
+    response = await _gemini_generate_with_retry(
+        client,
+        model=settings.LLM_MODEL,
+        contents=request_text,
+        config=generation_config,
+    )
+    return response.text or ""
+
+
+async def ollama_index_llm_func(
+    prompt: str,
+    system_prompt: str = None,
+    history: List[dict] = None,
+    **kwargs
+) -> str:
+    client = get_ollama_client()
+    request_text = _build_gemini_prompt(
+        prompt,
+        system_prompt=_build_ollama_index_system_prompt(system_prompt),
+        history=history,
+    )
+    requested_max_tokens = kwargs.get("max_tokens")
+    max_output_tokens = settings.LLM_MAX_TOKENS if requested_max_tokens is None else min(
+        int(requested_max_tokens), settings.LLM_MAX_TOKENS
+    )
+
+    last_error: Exception | None = None
+    retry_prompt = request_text
+
+    for attempt in range(1, settings.OLLAMA_MAX_RETRIES + 1):
+        try:
+            response = await asyncio.wait_for(
+                client.generate(
+                    model=settings.OLLAMA_INDEX_MODEL,
+                    prompt=retry_prompt,
+                    options={
+                        "temperature": float(kwargs.get("temperature", 0.0)),
+                        "num_ctx": settings.OLLAMA_NUM_CTX,
+                        "num_predict": max_output_tokens,
+                    },
+                    stream=False,
+                ),
+                timeout=settings.OLLAMA_TIMEOUT_SECONDS,
+            )
+            response_text = str(response.get("response", "")).strip()
+
+            if response_text and _looks_malformed_extraction_output(response_text):
+                print(
+                    f"LLM WARNING: Ollama extraction output looked malformed on attempt "
+                    f"{attempt}/{settings.OLLAMA_MAX_RETRIES}. Retrying with stricter reminder."
+                )
+                if attempt >= settings.OLLAMA_MAX_RETRIES:
+                    return response_text
+                retry_prompt = (
+                    f"{request_text}\n\n"
+                    "FINAL REMINDER: return only exact extraction records with no prose and no extra fields."
+                )
+                await asyncio.sleep(settings.OLLAMA_RETRY_DELAY_SECONDS)
+                continue
+
+            return response_text
+        except asyncio.TimeoutError as error:
+            last_error = error
+            print(
+                f"LLM TIMEOUT: Ollama request exceeded {settings.OLLAMA_TIMEOUT_SECONDS}s "
+                f"on attempt {attempt}/{settings.OLLAMA_MAX_RETRIES}."
+            )
+        except Exception as error:
+            last_error = error
+            print(
+                f"LLM ERROR: Ollama request failed on attempt {attempt}/"
+                f"{settings.OLLAMA_MAX_RETRIES}: {error}"
+            )
+
+        if attempt < settings.OLLAMA_MAX_RETRIES:
+            await asyncio.sleep(settings.OLLAMA_RETRY_DELAY_SECONDS)
+
+    if last_error is not None:
+        raise RuntimeError(
+            "Ollama indexing request failed after retries. "
+            f"Last error: {last_error}"
+        ) from last_error
+    raise RuntimeError("Ollama indexing request failed without a response.")
+
+
+# Backward-compatible alias for existing imports/tests.
+deepseek_llm_func = gemini_chat_llm_func
 
 async def qwen_vl_parse_pdf(file_path: str) -> str:
     """
@@ -227,7 +403,7 @@ async def qwen_vl_parse_pdf(file_path: str) -> str:
         "content": content
     })
     
-    client = get_openai_client()
+    client = get_openrouter_client()
     response = await client.chat.completions.create(
         model="qwen/qwen3-vl-235b-a22b-instruct",
         messages=messages,

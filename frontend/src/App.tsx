@@ -136,7 +136,7 @@ function App() {
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Shield className="w-4 h-4" />
-            <span>DeepSeek V3.2 / Qwen 3</span>
+            <span>Gemini 3.1 Flash Lite</span>
           </div>
         </div>
       </aside>
