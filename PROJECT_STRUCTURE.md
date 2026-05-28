@@ -16,7 +16,7 @@ Legal-RAG/
 │   │   └─ schemas.py         # Pydantic request/response models
 │   ├─ core/
 │   │   ├─ rag_engine.py      # LightRAG singleton, storage init, async query/insert
-│   │   ├─ document_processor.py  # Extracts text from PDF/TXT (pymupdf4llm, PaddleOCR, Chandra)
+│   │   ├─ document_processor.py      # Extracts text from PDF/TXT via Docling without OCR
 │   │   ├─ legal_chunker.py   # Normalizes text, enforces Điều boundaries, embeds breadcrumbs
 │   │   └─ llm_services.py    # Embedding functions & OpenRouter LLM wrapper
 │   └─ tests/                 # Unit tests (not required at runtime)

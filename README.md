@@ -7,7 +7,7 @@ An advanced legal document assistant powered by **LightRAG**, localized for Viet
 ## 🚀 Key Features
 
 - **Vietnamese Legal Localization**: Specialized entity extraction for laws (_Điều khoản, Văn bản pháp luật, Cơ quan ban hành_).
-- **Vision-Based PDF Parsing**: Uses **Qwen 3 VL** (via OpenRouter) to extract raw legal text from PDFs with absolute fidelity, even for scans.
+- **Docling PDF Parsing Without OCR**: Uses **Docling** to extract embedded text from legal PDFs and saves extracted `.txt` artifacts for indexing. Scanned/image-only PDFs are rejected because OCR is disabled by design.
 - **Interactive Knowledge Graph**: Explore legal relationships via the integrated **LightRAG Graph UI** on port 8001.
 
   ![KG Screenshot 1](docs/KGScreenshot1.png)
@@ -30,7 +30,7 @@ An advanced legal document assistant powered by **LightRAG**, localized for Viet
 - **Backend**: Python 3.11, FastAPI, `lightrag-hku`
 - **Frontend**: Vite, React, TypeScript, Tailwind CSS, Shadcn UI
 - **Database**: PostgreSQL with `pgvector` (Vector) and `Apache AGE` (Graph)
-- **LLM/Embeddings**: Gemini Developer API for chat generation, optional OpenRouter fallback code for legacy OCR paths, plus local Vietnamese legal embeddings with `huyydangg/DEk21_hcmute_embedding`
+- **LLM/Embeddings**: Gemini Developer API for chat generation, Ollama for LightRAG indexing, Docling for no-OCR PDF text extraction, plus local Vietnamese legal embeddings with `huyydangg/DEk21_hcmute_embedding`
 - **Gemini response model**: `gemini-3.1-flash-lite` (default)
 - **Deployment**: Docker Compose
 

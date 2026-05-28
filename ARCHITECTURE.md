@@ -34,7 +34,7 @@ flowchart TD
 | **FastAPI entry point** | Starts the app, sets CORS, includes routes. | `backend/main.py` |
 | **API router** | Defines `/chat`, `/upload`, `/documents`, `/health`. Handles request validation, streaming logic, error handling. | `backend/api/routes.py` |
 | **RAGEngine** | Singleton wrapper around **LightRAG**. Initializes Postgres connection pools, builds embedding function, provides async `aquery` and `ainsert`. | `backend/core/rag_engine.py` |
-| **DocumentProcessor** | Converts PDF or plain TXT to text. Uses `pymupdf4llm` for text PDFs, and falls back to OCR (`PaddleOCR` / `Chandra OCR 2`) for scans. Supports async extraction. | `backend/core/document_processor.py` |
+| **DocumentProcessor** | Converts PDF or plain TXT to text. Uses Docling for PDFs with OCR disabled. Writes extracted PDF text to `extracted_txt/<stem>.txt` and rejects scanned/image-only PDFs with no embedded text. Supports async extraction. | `backend/core/document_processor.py` |
 | **Legal Chunker** | Normalizes legal text by embedding context breadcrumbs (`[Chương > Mục]`) and enforcing `Điều` boundaries for optimal LightRAG chunking. | `backend/core/legal_chunker.py` |
 | **Embedding Functions** | - `QwenEmbeddingFunc` – uses OpenRouter embeddings (via `openai.AsyncOpenAI`).<br>- `VietLegalHarrierEmbeddingFunc` – local `sentence‑transformers` model with a query‑instruction prefix. | `backend/core/llm_services.py` |
 | **LLM Wrapper** | Calls OpenRouter LLM (`gemini-3-flash-preview` by default). Handles streaming and parameter sanitisation. | `backend/core/llm_services.py` |
@@ -44,7 +44,7 @@ flowchart TD
 ## Data Flow
 1. **Ingestion**
    - User uploads a PDF/TXT via `/upload`.
-   - `DocumentProcessor.extract_text` → extracts text directly or via OCR.
+   - `DocumentProcessor.extract_text` → extracts embedded PDF text through Docling with OCR disabled. It reads TXT directly.
    - Text is normalized by `legal_chunker.normalize_for_lightrag` (embeds breadcrumbs, enforces `"\n\n"` around `Điều` markers).
    - Normalized text is sent to `RAGEngine.ainsert`.
    - `RAGEngine` stores chunks in PostgreSQL vector store (embeddings) and updates the knowledge graph.
@@ -64,7 +64,7 @@ flowchart TD
    - Frontend polls this endpoint every 10 seconds to keep the UI in sync.
 
 ## Pre‑Processing Pipeline
-- **File type detection** → text‑layer PDF (`pymupdf4llm`) or scan PDF → image conversion (`pdf2image`) → OCR (`PaddleOCR` with `Chandra OCR 2` fallback).
+- **File type detection** → TXT files are read directly. PDFs are converted through Docling with OCR disabled. Scanned/image-only PDFs fail clearly instead of entering an OCR fallback.
 - **Text normalization** – `legal_chunker` adds breadcrumbs and ensures `\n\n` separators align with `Điều` boundaries.
 - **Chunking** – LightRAG splits the normalized text by `"\n\n"`.
 - **Embedding** – either OpenRouter (`QwenEmbeddingFunc`) or local Sentence‑Transformer (`VietLegalHarrierEmbeddingFunc`).
