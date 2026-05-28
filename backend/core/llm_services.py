@@ -111,6 +111,8 @@ class LocalSentenceTransformerEmbeddingFunc:
 
         embeddings = await asyncio.to_thread(encode_batch)
         return np.array(embeddings)
+
+
 def _build_gemini_prompt(
     prompt: str,
     system_prompt: str | None = None,
@@ -330,87 +332,3 @@ async def ollama_index_llm_func(
 
 # Backward-compatible alias for existing imports/tests.
 deepseek_llm_func = gemini_chat_llm_func
-
-async def qwen_vl_parse_pdf(file_path: str) -> str:
-    """
-    Parse PDF using Qwen 3 VL model via OpenRouter.
-    Converts pages to images and sends them to the vision model.
-    """
-    import base64
-    from io import BytesIO
-    from pdf2image import convert_from_path
-    from pdf2image.exceptions import PDFInfoNotInstalledError
-    from pypdf import PdfReader
-
-    def extract_text_with_pypdf() -> str:
-        reader = PdfReader(file_path)
-        extracted_pages = []
-        for page in reader.pages:
-            page_text = page.extract_text() or ""
-            if page_text.strip():
-                extracted_pages.append(page_text)
-        return "\n\n".join(extracted_pages).strip()
-    
-    # Convert PDF to images
-    # We limit to first few pages for efficiency in this demo, 
-    # but you can process all of them.
-    try:
-        convert_kwargs = {"first_page": 1, "last_page": 5}
-        if settings.POPPLER_PATH:
-            convert_kwargs["poppler_path"] = settings.POPPLER_PATH
-        images = convert_from_path(file_path, **convert_kwargs)
-    except PDFInfoNotInstalledError as exc:
-        fallback_text = extract_text_with_pypdf()
-        if fallback_text:
-            return fallback_text
-        raise RuntimeError(
-            "PDF image parsing requires Poppler. Install Poppler and add its bin folder to PATH, "
-            "or set POPPLER_PATH in .env to that bin folder."
-        ) from exc
-    
-    messages = [
-        {
-            "role": "system", 
-            "content": (
-                "You are an elite legal document parser. Extract every character from the images with 100% fidelity. "
-                "STRICT INSTRUCTION: Output ONLY the raw extracted text. "
-                "NO PREAMBLE. NO CONVERSATION. NO INTRODUCTIONS (e.g., 'Dưới đây là...', 'Here is the text...'). "
-                "Directly start with the content of the document. "
-                "Maintain original layout, headers, and spacing."
-            )
-        }
-    ]
-    
-    content = []
-    for i, image in enumerate(images):
-        buffered = BytesIO()
-        image.save(buffered, format="JPEG")
-        img_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
-        
-        content.append({
-            "type": "text",
-            "text": f"--- Page {i+1} ---"
-        })
-        content.append({
-            "type": "image_url",
-            "image_url": {
-                "url": f"data:image/jpeg;base64,{img_base64}"
-            }
-        })
-    
-    messages.append({
-        "role": "user",
-        "content": content
-    })
-    
-    client = get_openrouter_client()
-    response = await client.chat.completions.create(
-        model="qwen/qwen3-vl-235b-a22b-instruct",
-        messages=messages,
-        extra_headers={
-            "HTTP-Referer": "https://github.com/traffic/law-assistant",
-            "X-Title": "Traffic Law Assistant PDF Parser",
-        }
-    )
-    
-    return response.choices[0].message.content
