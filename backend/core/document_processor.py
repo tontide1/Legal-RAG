@@ -7,12 +7,14 @@ extractable text layer, ingestion fails instead of attempting OCR.
 from __future__ import annotations
 
 import asyncio
+import re
 from pathlib import Path
 
 
 NO_EXTRACTABLE_PDF_TEXT_ERROR = (
     "No extractable text found in PDF. OCR is disabled, so scanned PDFs are not supported."
 )
+DOCLING_COMMENT_ONLY_PATTERN = re.compile(r"^(?:\s*<!--.*?-->\s*)+$", re.DOTALL)
 
 
 class DocumentProcessor:
@@ -73,6 +75,14 @@ def _build_docling_pdf_converter():
     )
 
 
+def _has_meaningful_pdf_text(text: str) -> bool:
+    stripped = text.strip()
+    if not stripped:
+        return False
+
+    return DOCLING_COMMENT_ONLY_PATTERN.fullmatch(stripped) is None
+
+
 def _convert_pdf_with_docling(file_path: str, converter=None) -> str:
     converter = converter or _build_docling_pdf_converter()
 
@@ -86,7 +96,11 @@ def _convert_pdf_with_docling(file_path: str, converter=None) -> str:
         if not callable(export_to_markdown):
             raise ValueError("Docling document does not support Markdown export")
 
-        return export_to_markdown() or ""
+        text = export_to_markdown() or ""
+        if not _has_meaningful_pdf_text(text):
+            return ""
+
+        return text
     except ValueError:
         raise
     except Exception as exc:

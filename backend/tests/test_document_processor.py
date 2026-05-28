@@ -94,3 +94,19 @@ def test_extract_pdf_raises_when_docling_returns_empty_text(tmp_path, monkeypatc
         asyncio.run(DocumentProcessor().extract_text(str(file_path)))
 
     assert not (tmp_path / "extracted_txt" / "scan.txt").exists()
+
+
+def test_extract_pdf_raises_when_docling_returns_image_placeholder(tmp_path, monkeypatch):
+    from backend.config import settings
+    from backend.core.document_processor import DocumentProcessor
+
+    monkeypatch.setattr(settings, "LIGHTRAG_WORKING_DIR", str(tmp_path))
+    file_path = tmp_path / "scan.pdf"
+    file_path.write_bytes(b"%PDF-1.4\n%fake scan pdf file\n")
+
+    _install_fake_docling(monkeypatch, "<!-- image -->")
+
+    with pytest.raises(ValueError):
+        asyncio.run(DocumentProcessor().extract_text(str(file_path)))
+
+    assert not (tmp_path / "extracted_txt" / "scan.txt").exists()
