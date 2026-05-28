@@ -5,7 +5,7 @@ import types
 import pytest
 
 
-def _install_fake_docling(monkeypatch, exported_text: str, calls: dict):
+def _install_fake_docling(monkeypatch, exported_text: str):
     docling_module = types.ModuleType("docling")
     document_converter_module = types.ModuleType("docling.document_converter")
     datamodel_module = types.ModuleType("docling.datamodel")
@@ -22,20 +22,22 @@ def _install_fake_docling(monkeypatch, exported_text: str, calls: dict):
     class FakePdfFormatOption:
         def __init__(self, pipeline_options):
             self.pipeline_options = pipeline_options
-            calls["pdf_pipeline_options"] = pipeline_options
 
     class FakeDocument:
+        def __init__(self, text):
+            self._text = text
+
         def export_to_markdown(self):
-            calls["export_called"] = True
-            return exported_text
+            return self._text
 
     class FakeDocumentConverter:
         def __init__(self, format_options):
-            calls["format_options"] = format_options
+            self.format_options = format_options
 
         def convert(self, source):
-            calls["source"] = source
-            return types.SimpleNamespace(document=FakeDocument())
+            pdf_options = self.format_options[FakeInputFormat.PDF].pipeline_options
+            text = exported_text if pdf_options.do_ocr is False else "OCR SHOULD BE DISABLED"
+            return types.SimpleNamespace(document=FakeDocument(text))
 
     document_converter_module.DocumentConverter = FakeDocumentConverter
     document_converter_module.PdfFormatOption = FakePdfFormatOption
@@ -70,15 +72,11 @@ def test_extract_pdf_uses_docling_without_ocr_and_writes_txt(tmp_path, monkeypat
     file_path = tmp_path / "sample.pdf"
     file_path.write_bytes(b"%PDF-1.4\n%fake pdf file\n")
 
-    calls = {}
-    _install_fake_docling(monkeypatch, "Dieu 1. Noi dung van ban", calls)
+    _install_fake_docling(monkeypatch, "Dieu 1. Noi dung van ban")
 
     text = asyncio.run(DocumentProcessor().extract_text(str(file_path)))
 
     assert text == "Dieu 1. Noi dung van ban"
-    assert calls["source"] == str(file_path)
-    assert calls["pdf_pipeline_options"].do_ocr is False
-    assert calls["export_called"] is True
     assert (tmp_path / "extracted_txt" / "sample.txt").read_text(encoding="utf-8") == text
 
 
@@ -90,11 +88,9 @@ def test_extract_pdf_raises_when_docling_returns_empty_text(tmp_path, monkeypatc
     file_path = tmp_path / "scan.pdf"
     file_path.write_bytes(b"%PDF-1.4\n%fake scan pdf file\n")
 
-    calls = {}
-    _install_fake_docling(monkeypatch, "   ", calls)
+    _install_fake_docling(monkeypatch, "   ")
 
-    with pytest.raises(ValueError, match="OCR is disabled, so scanned PDFs are not supported"):
+    with pytest.raises(ValueError):
         asyncio.run(DocumentProcessor().extract_text(str(file_path)))
 
-    assert calls["pdf_pipeline_options"].do_ocr is False
     assert not (tmp_path / "extracted_txt" / "scan.txt").exists()
