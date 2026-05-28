@@ -7,7 +7,7 @@ import shutil
 import os
 from backend.config import settings
 from backend.core.document_processor import DocumentProcessor
-from backend.core.legal_chunker import chunk_markdown, chunks_to_strings
+from backend.core.legal_chunker import normalize_for_lightrag
 
 router = APIRouter()
 
@@ -17,7 +17,13 @@ document_processor = DocumentProcessor()
 def get_rag_engine():
     from backend.core.rag_engine import RAGEngine
 
-    return RAGEngine.get_instance()
+    return RAGEngine.get_query_instance()
+
+
+def get_ingest_rag_engine():
+    from backend.core.rag_engine import RAGEngine
+
+    return RAGEngine.get_ingest_instance()
 
 
 def _normalize_text_response(value) -> str:
@@ -25,6 +31,22 @@ def _normalize_text_response(value) -> str:
         return ""
     text = str(value).strip()
     return "" if text.lower() == "none" else text
+
+
+async def _find_existing_document_status(rag, filename: str) -> str | None:
+    docs_tuple, _ = await rag.doc_status.get_docs_paginated()
+
+    for _, status_obj in docs_tuple:
+        source = (status_obj.file_path or "").strip()
+        if source != filename:
+            continue
+
+        status = getattr(status_obj, "status", None)
+        if hasattr(status, "value"):
+            return str(status.value)
+        if status is not None:
+            return str(status)
+    return None
 
 @router.post("/chat")
 async def chat(request: ChatRequest):
@@ -189,30 +211,46 @@ async def upload_file(file: UploadFile = File(...)):
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        rag = get_rag_engine()
+        rag = get_ingest_rag_engine()
+        existing_status = await _find_existing_document_status(rag, filename)
+        if existing_status in {"processing", "pending", "processed", "success", "completed"}:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"File '{filename}' is already indexed or currently processing "
+                    f"(status: {existing_status})."
+                ),
+            )
+
         content = await document_processor.extract_text(file_path)
 
         if not content.strip():
             raise ValueError("File is empty or no text could be extracted")
 
-        # Chunk by legal structure (Điều/Khoản/Điểm) instead of plain double-newline
-        chunks = chunk_markdown(content, source_file=filename)
-        chunk_texts = chunks_to_strings(chunks)
+        # Normalize legal structure so LightRAG can split on article boundaries
+        # instead of treating each pre-split chunk as an independent document.
+        normalized_content = normalize_for_lightrag(content, source_file=filename)
+        if not normalized_content.strip():
+            raise ValueError("No valid normalized content could be extracted from the document")
 
-        if not chunk_texts:
-            raise ValueError("No valid chunks could be extracted from the document")
-
-        print(f"[INFO] {filename}: {len(chunk_texts)} legal chunks produced.")
-        await rag.ainsert(chunk_texts, file_paths=[filename] * len(chunk_texts))
+        legal_chunk_count = normalized_content.count("\n\n") + 1
+        print(f"[INFO] {filename}: normalized for LightRAG with ~{legal_chunk_count} legal sections.")
+        await rag.ainsert(
+            normalized_content,
+            file_paths=[filename],
+            split_by_character="\n\n",
+        )
             
         return UploadResponse(
             filename=filename,
             status="success",
             message=(
                 f"File indexed with the configured embeddings "
-                f"({len(content)} characters, {len(chunk_texts)} legal chunks)"
+                f"({len(content)} characters, ~{legal_chunk_count} legal sections)"
             )
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to index file: {str(e)}")
     finally:

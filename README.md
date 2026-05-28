@@ -30,8 +30,8 @@ An advanced legal document assistant powered by **LightRAG**, localized for Viet
 - **Backend**: Python 3.11, FastAPI, `lightrag-hku`
 - **Frontend**: Vite, React, TypeScript, Tailwind CSS, Shadcn UI
 - **Database**: PostgreSQL with `pgvector` (Vector) and `Apache AGE` (Graph)
-- **LLM/Embeddings**: Gemini 3 Flash and Qwen 3 VL via OpenRouter, plus local Vietnamese legal embeddings with `huyydangg/DEk21_hcmute_embedding`
-- **Gemini response models**: `gemini-3-flash-preview` (default), plus optional `gemini-2.5-flash-lite`, `gemini-3-flash` and `gemini-3.1-flash-lite`
+- **LLM/Embeddings**: Gemini Developer API for chat generation, optional OpenRouter fallback code for legacy OCR paths, plus local Vietnamese legal embeddings with `huyydangg/DEk21_hcmute_embedding`
+- **Gemini response model**: `gemini-3.1-flash-lite` (default)
 - **Deployment**: Docker Compose
 
 ## 📦 Getting Started
@@ -39,7 +39,7 @@ An advanced legal document assistant powered by **LightRAG**, localized for Viet
 ### Prerequisites
 
 - Docker and Docker Compose
-- OpenRouter API Key
+- Google Gemini API Key
 
 ### Environment Setup
 
@@ -49,8 +49,8 @@ Create a `.env` file in the root directory (refer to `.env.example`):
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 POSTGRES_DATABASE=law_assistant
-OPENROUTER_API_KEY=your_key_here
-LLM_MODEL=gemini-3-flash-preview
+GOOGLE_API_KEY=your_key_here
+LLM_MODEL=gemini-3.1-flash-lite
 EMBEDDING_BACKEND=sentence_transformers
 EMBEDDING_MODEL=huyydangg/DEk21_hcmute_embedding
 EMBEDDING_DIM=768
@@ -128,4 +128,7 @@ This repository now supports a local Hugging Face embedding backend for Vietname
 > Switching from the previous embedding space to `huyydangg/DEk21_hcmute_embedding` (768D) requires a full reindex. Existing vector data must not be mixed across embedding spaces.
 
 > [!IMPORTANT]
-> Docker GPU execution requires Docker Desktop GPU support plus an NVIDIA driver/runtime on the host. The backend service is configured with `gpus: all`, so you can inspect logs with `docker compose logs -f backend` while the embedding model runs inside the container.
+> Chat generation now uses the Gemini Developer API directly through `GOOGLE_API_KEY`. `OPENROUTER_API_KEY` is no longer needed for the normal chat flow.
+
+> [!IMPORTANT]
+> Docker now defaults embeddings to CPU via `DOCKER_EMBEDDING_DEVICE=cpu` for better stability on Windows Docker Desktop. Your root `.env` can still keep `EMBEDDING_DEVICE=cuda` for non-Docker runs.

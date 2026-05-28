@@ -1,15 +1,19 @@
 import os
 from lightrag import LightRAG
 from lightrag.utils import EmbeddingFunc
-from backend.core.llm_services import (
-    QwenEmbeddingFunc,
-    LocalSentenceTransformerEmbeddingFunc,
-    deepseek_llm_func,
-)
+
 from backend.config import settings
+from backend.core.llm_services import (
+    LocalSentenceTransformerEmbeddingFunc,
+    QwenEmbeddingFunc,
+    gemini_chat_llm_func,
+    ollama_index_llm_func,
+)
+
 
 class RAGEngine:
-    _instance = None
+    _query_instance = None
+    _ingest_instance = None
 
     @staticmethod
     def _build_embedding_func():
@@ -25,64 +29,88 @@ class RAGEngine:
             "Use one of: 'openrouter', 'sentence_transformers', 'huggingface_local', 'local'."
         )
 
+    @staticmethod
+    def _set_postgres_env():
+        os.environ["POSTGRES_HOST"] = settings.POSTGRES_HOST
+        os.environ["POSTGRES_PORT"] = str(settings.POSTGRES_PORT)
+        os.environ["POSTGRES_USER"] = settings.POSTGRES_USER
+        os.environ["POSTGRES_PASSWORD"] = settings.POSTGRES_PASSWORD
+        os.environ["POSTGRES_DATABASE"] = settings.POSTGRES_DATABASE
+
+    @classmethod
+    def _build_rag(cls, llm_func, llm_model_name: str, llm_model_kwargs: dict | None = None):
+        embedding_func = cls._build_embedding_func()
+
+        return LightRAG(
+            working_dir=settings.LIGHTRAG_WORKING_DIR,
+            llm_model_func=llm_func,
+            llm_model_name=llm_model_name,
+            llm_model_max_async=settings.LIGHTRAG_MAX_ASYNC,
+            llm_model_kwargs=llm_model_kwargs or {},
+            embedding_func_max_async=settings.LIGHTRAG_EMBEDDING_MAX_ASYNC,
+            default_embedding_timeout=settings.LIGHTRAG_EMBEDDING_TIMEOUT,
+            max_parallel_insert=settings.LIGHTRAG_MAX_PARALLEL_INSERT,
+            chunk_token_size=settings.LIGHTRAG_CHUNK_SIZE,
+            chunk_overlap_token_size=settings.LIGHTRAG_CHUNK_OVERLAP_SIZE,
+            embedding_func=EmbeddingFunc(
+                embedding_dim=settings.EMBEDDING_DIM,
+                max_token_size=settings.EMBEDDING_MAX_TOKEN_SIZE,
+                func=embedding_func,
+                model_name=settings.EMBEDDING_MODEL,
+            ),
+            kv_storage="PGKVStorage",
+            vector_storage="PGVectorStorage",
+            graph_storage="PGGraphStorage",
+            doc_status_storage="PGDocStatusStorage",
+            addon_params={
+                "language": settings.SUMMARY_LANGUAGE,
+                "entity_types": settings.ENTITY_TYPES,
+            },
+        )
+
     @classmethod
     async def initialize(cls):
-        """Asynchronously initialize the LightRAG storage pools."""
-        if cls._instance is None:
-            # Initialize custom embedding function
-            embedding_func = cls._build_embedding_func()
-            
-            # Set environment variables for LightRAG Postgres compatibility
-            os.environ["POSTGRES_HOST"] = settings.POSTGRES_HOST
-            os.environ["POSTGRES_PORT"] = str(settings.POSTGRES_PORT)
-            os.environ["POSTGRES_USER"] = settings.POSTGRES_USER
-            os.environ["POSTGRES_PASSWORD"] = settings.POSTGRES_PASSWORD
-            os.environ["POSTGRES_DATABASE"] = settings.POSTGRES_DATABASE
+        """Initialize separate LightRAG instances for query and ingest."""
+        cls._set_postgres_env()
 
-            # LightRAG initialization with native Postgres storage
-            cls._instance = LightRAG(
-                working_dir=settings.LIGHTRAG_WORKING_DIR,
-                llm_model_func=deepseek_llm_func,
-                llm_model_max_async=settings.LIGHTRAG_MAX_ASYNC,
-                embedding_func_max_async=settings.LIGHTRAG_EMBEDDING_MAX_ASYNC,
-                default_embedding_timeout=settings.LIGHTRAG_EMBEDDING_TIMEOUT,
-                max_parallel_insert=settings.LIGHTRAG_MAX_PARALLEL_INSERT,
-                chunk_token_size=settings.LIGHTRAG_CHUNK_SIZE,
-                chunk_overlap_token_size=settings.LIGHTRAG_CHUNK_OVERLAP_SIZE,
-                embedding_func=EmbeddingFunc(
-                    embedding_dim=settings.EMBEDDING_DIM,
-                    max_token_size=settings.EMBEDDING_MAX_TOKEN_SIZE,
-                    func=embedding_func,
-                    model_name=settings.EMBEDDING_MODEL
-                ),
-                # Use strings for storage types (LightRAG will instantiate them)
-                kv_storage="PGKVStorage",
-                vector_storage="PGVectorStorage",
-                graph_storage="PGGraphStorage",
-                doc_status_storage="PGDocStatusStorage",
-                addon_params={
-                    "language": settings.SUMMARY_LANGUAGE,
-                    "entity_types": settings.ENTITY_TYPES
-                }
+        if cls._query_instance is None:
+            cls._query_instance = cls._build_rag(
+                gemini_chat_llm_func,
+                settings.LLM_MODEL,
             )
-            # CRITICAL: Initialize Postgres connection pools
-            await cls._instance.initialize_storages()
-        return cls._instance
+            await cls._query_instance.initialize_storages()
+
+        if cls._ingest_instance is None:
+            cls._ingest_instance = cls._build_rag(
+                ollama_index_llm_func,
+                settings.OLLAMA_INDEX_MODEL,
+                llm_model_kwargs={"options": {"num_ctx": settings.OLLAMA_NUM_CTX}},
+            )
+            await cls._ingest_instance.initialize_storages()
+
+        return cls._query_instance
 
     @classmethod
     async def finalize(cls):
-        """Cleanly shutdown the LightRAG storage pools."""
-        if cls._instance is not None:
-            # Note: LightRAG's storage adapters usually handle pool closing 
-            # if they have a close/finalize method.
-            # As of current LightRAG version, we ensure we clean up the instance.
-            cls._instance = None
-            print("INFO: RAG Engine connections closed.")
+        cls._query_instance = None
+        cls._ingest_instance = None
+        print("INFO: RAG Engine connections closed.")
+
+    @classmethod
+    def get_query_instance(cls):
+        if cls._query_instance is None:
+            raise RuntimeError("RAGEngine query instance not initialized. Call RAGEngine.initialize() first.")
+        return cls._query_instance
+
+    @classmethod
+    def get_ingest_instance(cls):
+        if cls._ingest_instance is None:
+            raise RuntimeError("RAGEngine ingest instance not initialized. Call RAGEngine.initialize() first.")
+        return cls._ingest_instance
 
     @classmethod
     def get_instance(cls):
-        if cls._instance is None:
-            raise RuntimeError("RAGEngine not initialized. Call RAGEngine.initialize() first.")
-        return cls._instance
+        return cls.get_query_instance()
+
 
 rag_engine = RAGEngine()
