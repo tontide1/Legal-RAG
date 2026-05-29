@@ -1,11 +1,22 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from backend.api.schemas import ChatRequest, ChatResponse, ComparisonResponse, UploadResponse
+from backend.api.schemas import (
+    ChatRequest,
+    ChatResponse,
+    ComparisonResponse,
+    GraphProviderOption,
+    GraphProviderOptionsResponse,
+    GraphProviderSettingsRequest,
+    GraphProviderSettingsResponse,
+    GraphProviderSettingsUpdateResponse,
+    UploadResponse,
+)
 from fastapi.responses import StreamingResponse
 import json
 import asyncio
 import shutil
 import os
 from backend.config import settings
+from backend.core.app_settings import get_graph_provider_settings_service
 from backend.core.document_processor import DocumentProcessor
 from backend.core.hybrid_query import run_hybrid_query
 from backend.core.legal_chunker import normalize_for_lightrag
@@ -25,6 +36,40 @@ async def get_ingest_rag_engine(provider: str = "ollama"):
     from backend.core.rag_engine import RAGEngine
 
     return await RAGEngine.get_ingest_instance(provider)
+
+
+@router.get("/settings/graph-provider", response_model=GraphProviderSettingsResponse)
+async def get_graph_provider_settings():
+    service = get_graph_provider_settings_service()
+    provider = await service.get_graph_build_provider()
+    return GraphProviderSettingsResponse(provider=provider)
+
+
+@router.get("/settings/graph-provider/options", response_model=GraphProviderOptionsResponse)
+async def get_graph_provider_options():
+    return GraphProviderOptionsResponse(
+        options=[
+            GraphProviderOption(value="ollama", label="Ollama"),
+            GraphProviderOption(value="9router", label="9router Local"),
+        ]
+    )
+
+
+@router.put("/settings/graph-provider", response_model=GraphProviderSettingsUpdateResponse)
+async def update_graph_provider_settings(request: GraphProviderSettingsRequest):
+    service = get_graph_provider_settings_service()
+    try:
+        provider = await service.set_graph_build_provider(request.provider)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+    except RuntimeError as error:
+        raise HTTPException(status_code=503, detail=str(error))
+
+    return GraphProviderSettingsUpdateResponse(
+        provider=provider,
+        status="success",
+        message=f"Graph provider updated to '{provider}'.",
+    )
 
 
 def _normalize_text_response(value) -> str:
@@ -270,7 +315,8 @@ async def upload_file(file: UploadFile = File(...)):
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        rag = await get_ingest_rag_engine()
+        provider = await get_graph_provider_settings_service().get_graph_build_provider()
+        rag = await get_ingest_rag_engine(provider)
         existing_status = await _find_existing_document_status(rag, filename)
         if existing_status in {"processing", "pending", "processed", "success", "completed"}:
             raise HTTPException(
@@ -304,7 +350,7 @@ async def upload_file(file: UploadFile = File(...)):
             filename=filename,
             status="success",
             message=(
-                f"File indexed with the configured embeddings "
+                f"File indexed with the configured embeddings via graph provider '{provider}' "
                 f"({len(content)} characters, ~{legal_chunk_count} legal sections)"
             )
         )

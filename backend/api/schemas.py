@@ -1,5 +1,6 @@
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, Field
-from typing import List, Optional, Any, Dict
 
 class ChatRequest(BaseModel):
     message: str
@@ -18,5 +19,28 @@ class ComparisonResponse(BaseModel):
 
 class UploadResponse(BaseModel):
     filename: str
+    status: str
+    message: str
+
+
+class GraphProviderSettingsRequest(BaseModel):
+    provider: str
+
+
+class GraphProviderSettingsResponse(BaseModel):
+    provider: str
+
+
+class GraphProviderOption(BaseModel):
+    value: str
+    label: str
+
+
+class GraphProviderOptionsResponse(BaseModel):
+    options: List[GraphProviderOption] = Field(default_factory=list)
+
+
+class GraphProviderSettingsUpdateResponse(BaseModel):
+    provider: str
     status: str
     message: str

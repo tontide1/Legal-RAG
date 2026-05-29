@@ -1,6 +1,10 @@
 import asyncio
+from pathlib import Path
+import sys
 
 import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 
 class DummyUploadFile:
@@ -12,6 +16,73 @@ class DummyUploadFile:
 class FakeDocStatus:
     async def get_docs_paginated(self):
         return ([], None)
+
+
+class FakeGraphProviderSettingsService:
+    def __init__(self, provider: str = "ollama"):
+        self.provider = provider
+        self.get_calls = 0
+        self.set_calls = []
+
+    async def get_graph_build_provider(self):
+        self.get_calls += 1
+        return self.provider
+
+    async def set_graph_build_provider(self, provider: str):
+        self.set_calls.append(provider)
+        self.provider = provider.strip().lower()
+        return self.provider
+
+
+def test_graph_provider_settings_get_returns_current_provider(monkeypatch):
+    import fastapi.dependencies.utils as fastapi_utils
+
+    monkeypatch.setattr(fastapi_utils, "ensure_multipart_is_installed", lambda: None)
+
+    import backend.api.routes as routes
+
+    service = FakeGraphProviderSettingsService("9router")
+    monkeypatch.setattr(routes, "get_graph_provider_settings_service", lambda: service)
+
+    response = asyncio.run(routes.get_graph_provider_settings())
+
+    assert response.provider == "9router"
+    assert service.get_calls == 1
+
+
+def test_graph_provider_settings_options_returns_allowed_providers(monkeypatch):
+    import fastapi.dependencies.utils as fastapi_utils
+
+    monkeypatch.setattr(fastapi_utils, "ensure_multipart_is_installed", lambda: None)
+
+    import backend.api.routes as routes
+
+    response = asyncio.run(routes.get_graph_provider_options())
+
+    assert [option.value for option in response.options] == ["ollama", "9router"]
+    assert [option.label for option in response.options] == ["Ollama", "9router Local"]
+
+
+def test_graph_provider_settings_put_persists_provider_and_returns_status(monkeypatch):
+    import fastapi.dependencies.utils as fastapi_utils
+
+    monkeypatch.setattr(fastapi_utils, "ensure_multipart_is_installed", lambda: None)
+
+    import backend.api.routes as routes
+
+    service = FakeGraphProviderSettingsService("ollama")
+    monkeypatch.setattr(routes, "get_graph_provider_settings_service", lambda: service)
+
+    response = asyncio.run(
+        routes.update_graph_provider_settings(
+            routes.GraphProviderSettingsRequest(provider=" 9router ")
+        )
+    )
+
+    assert response.provider == "9router"
+    assert response.status == "success"
+    assert "9router" in response.message
+    assert service.set_calls == [" 9router "]
 
 
 def test_upload_rejects_unsupported_extension(monkeypatch):
@@ -54,8 +125,11 @@ def test_upload_cleans_temp_file_on_failure(tmp_path, monkeypatch):
             return "noi dung"
 
     monkeypatch.setattr(routes, "document_processor", FakeProcessor())
-    
+
+    monkeypatch.setattr(routes, "get_graph_provider_settings_service", lambda: FakeGraphProviderSettingsService("ollama"))
+
     async def fake_get_ingest_rag_engine(provider: str = "ollama"):
+        assert provider == "ollama"
         return FakeRAG()
 
     monkeypatch.setattr(routes, "get_ingest_rag_engine", fake_get_ingest_rag_engine)
@@ -94,8 +168,11 @@ def test_upload_normalizes_and_uses_lightrag_split(tmp_path, monkeypatch):
 
     fake_rag = FakeRAG()
     monkeypatch.setattr(routes, "document_processor", FakeProcessor())
-    
+
+    monkeypatch.setattr(routes, "get_graph_provider_settings_service", lambda: FakeGraphProviderSettingsService("9router"))
+
     async def fake_get_ingest_rag_engine(provider: str = "ollama"):
+        assert provider == "9router"
         return fake_rag
 
     monkeypatch.setattr(routes, "get_ingest_rag_engine", fake_get_ingest_rag_engine)
@@ -103,6 +180,7 @@ def test_upload_normalizes_and_uses_lightrag_split(tmp_path, monkeypatch):
     response = asyncio.run(routes.upload_file(file))
 
     assert response.status == "success"
+    assert "9router" in response.message
     assert fake_rag.calls[0][0][0] == "doan 1\n\ndoan 2"
     assert fake_rag.calls[0][1]["split_by_character"] == "\n\n"
     assert fake_rag.calls[0][1]["file_paths"] == ["sample.txt"]
@@ -149,8 +227,11 @@ def test_upload_returns_conflict_for_existing_document(tmp_path, monkeypatch):
             raise AssertionError("extract_text should not run for duplicate files")
 
     monkeypatch.setattr(routes, "document_processor", FakeProcessor())
-    
+
+    monkeypatch.setattr(routes, "get_graph_provider_settings_service", lambda: FakeGraphProviderSettingsService("ollama"))
+
     async def fake_get_ingest_rag_engine(provider: str = "ollama"):
+        assert provider == "ollama"
         return FakeRAG()
 
     monkeypatch.setattr(routes, "get_ingest_rag_engine", fake_get_ingest_rag_engine)
