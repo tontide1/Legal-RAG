@@ -16,7 +16,9 @@ export default function GraphProviderSettings() {
   const [status, setStatus] = useState<StatusKind>('loading')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [reloadKey, setReloadKey] = useState(0)
   const clearStatusTimer = useRef<number | null>(null)
+  const isMountedRef = useRef(true)
 
   const clearTransientState = () => {
     if (clearStatusTimer.current !== null) {
@@ -36,10 +38,12 @@ export default function GraphProviderSettings() {
   }
 
   useEffect(() => {
-    let active = true
+    isMountedRef.current = true
 
     const loadSettings = async () => {
+      clearTransientState()
       setStatus('loading')
+      setMessage('')
       setError('')
 
       try {
@@ -48,22 +52,35 @@ export default function GraphProviderSettings() {
           client.get('/settings/graph-provider/options'),
         ])
 
-        if (!active) {
+        if (!isMountedRef.current) {
           return
         }
 
         const provider = providerResponse.data?.provider || ''
-        const loadedOptions = Array.isArray(optionsResponse.data?.options) ? optionsResponse.data.options : []
+        const loadedOptions: GraphProviderOption[] = Array.isArray(optionsResponse.data?.options)
+          ? optionsResponse.data.options
+          : []
 
-        setSavedProvider(provider)
-        setSelectedProvider(provider)
         setOptions(loadedOptions)
-        setStatus('idle')
-      } catch (requestError: any) {
-        if (!active) {
+        if (loadedOptions.length === 0) {
+          setSavedProvider('')
+          setSelectedProvider('')
+          setStatus('idle')
+          setMessage('No providers available.')
           return
         }
 
+        const fallbackProvider = loadedOptions[0]?.value || ''
+        const nextProvider = loadedOptions.some((option) => option.value === provider) ? provider : fallbackProvider
+        setSavedProvider(nextProvider)
+        setSelectedProvider(nextProvider)
+        setStatus('idle')
+      } catch (requestError: any) {
+        if (!isMountedRef.current) {
+          return
+        }
+
+        setOptions([])
         setStatus('error')
         setError(
           requestError.response?.data?.detail ||
@@ -73,13 +90,17 @@ export default function GraphProviderSettings() {
       }
     }
 
-    loadSettings()
+    void loadSettings()
 
     return () => {
-      active = false
+      isMountedRef.current = false
       clearTransientState()
     }
-  }, [])
+  }, [reloadKey])
+
+  const handleReloadProviders = () => {
+    setReloadKey((current) => current + 1)
+  }
 
   const handleSave = async () => {
     if (!selectedProvider || selectedProvider === savedProvider) {
@@ -148,8 +169,12 @@ export default function GraphProviderSettings() {
           disabled={status === 'loading' || isSaving || options.length === 0}
           className="w-full rounded-lg border bg-card px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {options.length === 0 ? (
+          {status === 'loading' ? (
             <option value="">Loading options...</option>
+          ) : status === 'error' ? (
+            <option value="">Failed to load providers</option>
+          ) : options.length === 0 ? (
+            <option value="">No providers available</option>
           ) : (
             options.map((option) => (
               <option key={option.value} value={option.value}>
@@ -158,6 +183,15 @@ export default function GraphProviderSettings() {
             ))
           )}
         </select>
+        {status === 'error' && (
+          <button
+            type="button"
+            onClick={handleReloadProviders}
+            className="text-xs text-primary underline underline-offset-2"
+          >
+            Retry loading providers
+          </button>
+        )}
       </label>
 
       <button
@@ -185,6 +219,13 @@ export default function GraphProviderSettings() {
       {status === 'success' && message && (
         <div className="flex items-center gap-2 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-[10px] font-bold text-emerald-600">
           <CheckCircle2 className="h-3 w-3" />
+          <span>{message}</span>
+        </div>
+      )}
+
+      {status === 'idle' && message && !error && (
+        <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-[10px] font-medium text-muted-foreground">
+          <AlertCircle className="h-3 w-3" />
           <span>{message}</span>
         </div>
       )}

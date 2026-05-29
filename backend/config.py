@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     OLLAMA_MAX_RETRIES: int = 2
     OLLAMA_RETRY_DELAY_SECONDS: int = 5
 
-    NINE_ROUTER_BASE_URL: str = "http://localhost:9009"
+    NINE_ROUTER_BASE_URL: str = "http://host.docker.internal:20128/v1"
     NINE_ROUTER_API_KEY: Optional[str] = None
     NINE_ROUTER_INDEX_MODEL: str = "qwen2.5:3b"
     NINE_ROUTER_TIMEOUT_SECONDS: int = 180

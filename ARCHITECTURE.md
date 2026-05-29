@@ -16,7 +16,7 @@ Traffic Law Assistant uses a FastAPI backend, a React frontend, and PostgreSQL f
 3. The backend validates `9router` before persisting it.
 4. Future uploads use the saved provider when building the graph.
 
-Query and chat behavior stay the same. Only the indexing path used during upload changes.
+Query and chat still use the dedicated query pipeline, but hybrid queries can now apply Jina reranking when configured. The graph-build provider setting only changes the indexing path used during upload.
 
 ## Main Files
 

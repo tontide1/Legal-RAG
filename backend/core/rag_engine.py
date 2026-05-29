@@ -155,12 +155,12 @@ class RAGEngine:
 
             cls._set_postgres_env()
             instance = cls._build_ingest_rag(provider_key)
-            cls._ingest_instances[provider_key] = instance
 
             initialize_storages = getattr(instance, "initialize_storages", None)
             if callable(initialize_storages):
                 await initialize_storages()
 
+            cls._ingest_instances[provider_key] = instance
             return instance
 
     @classmethod
