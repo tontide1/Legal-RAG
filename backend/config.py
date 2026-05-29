@@ -8,6 +8,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/law_assistant"
+    GRAPH_BUILD_PROVIDER_DEFAULT: str = "ollama"
+    DEFAULT_GRAPH_BUILD_PROVIDER: str = GRAPH_BUILD_PROVIDER_DEFAULT
     
     # Postgres individual components for LightRAG
     POSTGRES_HOST: str = "localhost"
@@ -28,6 +30,13 @@ class Settings(BaseSettings):
     OLLAMA_TIMEOUT_SECONDS: int = 180
     OLLAMA_MAX_RETRIES: int = 2
     OLLAMA_RETRY_DELAY_SECONDS: int = 5
+
+    NINE_ROUTER_BASE_URL: str = "http://localhost:9009"
+    NINE_ROUTER_API_KEY: Optional[str] = None
+    NINE_ROUTER_INDEX_MODEL: str = "qwen2.5:3b"
+    NINE_ROUTER_TIMEOUT_SECONDS: int = 180
+    NINE_ROUTER_MAX_RETRIES: int = 2
+    NINE_ROUTER_RETRY_DELAY_SECONDS: int = 5
     
     EMBEDDING_BACKEND: str = "sentence_transformers"
     EMBEDDING_MODEL: str = "huyydangg/DEk21_hcmute_embedding"
