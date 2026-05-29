@@ -16,11 +16,35 @@ interface Message {
   }
 }
 
+interface ChatHistoryMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
 const normalizeChunkContent = (value: unknown): string => {
   if (value == null) return ''
   const text = String(value)
   return text.trim().toLowerCase() === 'none' ? '' : text
 }
+
+const buildChatHistory = (messages: Message[]): ChatHistoryMessage[] =>
+  messages
+    .filter(message => message.id !== 'initial')
+    .map((message): ChatHistoryMessage | null => {
+      const content = message.comparison?.hybrid.content ?? message.content ?? ''
+      const normalizedContent = content.trim()
+
+      if (!normalizedContent) {
+        return null
+      }
+
+      return {
+        role: message.role,
+        content: normalizedContent
+      }
+    })
+    .filter((message): message is ChatHistoryMessage => message !== null)
+    .slice(-8)
 
 export default function ChatInterface({ comparisonMode }: { comparisonMode: boolean }) {
   const [messages, setMessages] = useState<Message[]>([
@@ -39,10 +63,12 @@ export default function ChatInterface({ comparisonMode }: { comparisonMode: bool
   const handleSend = async () => {
     if (!input.trim() || isLoading) return
 
+    const messageToSend = input.trim()
+    const history = buildChatHistory(messages)
     const userMsgId = Date.now().toString()
     const assistantMsgId = (Date.now() + 1).toString()
     
-    const userMessage: Message = { id: userMsgId, role: 'user', content: input }
+    const userMessage: Message = { id: userMsgId, role: 'user', content: messageToSend }
     setMessages(prev => [...prev, userMessage])
     setInput('')
     setIsLoading(true)
@@ -65,7 +91,8 @@ export default function ChatInterface({ comparisonMode }: { comparisonMode: bool
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          message: input,
+          message: messageToSend,
+          history,
           comparison_mode: comparisonMode,
           stream: true
         })
