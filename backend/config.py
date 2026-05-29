@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     
     OPENROUTER_API_KEY: Optional[str] = None
     GOOGLE_API_KEY: Optional[str] = None
+    JINA_API_KEY: Optional[str] = None
     POPPLER_PATH: Optional[str] = None
     OLLAMA_BASE_URL: str = "http://host.docker.internal:11434"
     OLLAMA_INDEX_MODEL: str = "qwen2.5:3b"
@@ -51,6 +52,9 @@ class Settings(BaseSettings):
     HYBRID_CHUNK_TOP_K: int = 12
     HYBRID_ANCHOR_CHUNK_LIMIT: int = 3
     HYBRID_BUCKET_CHUNK_LIMIT: int = 2
+    JINA_RERANK_MODEL: str = "jina-reranker-v2-base-multilingual"
+    JINA_RERANK_BASE_URL: str = "https://api.jina.ai/v1/rerank"
+    HYBRID_ENABLE_RERANK: bool = True
     
     SUMMARY_LANGUAGE: str = "Vietnamese"
     ENTITY_TYPES: list[str] = [

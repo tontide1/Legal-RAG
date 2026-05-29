@@ -4,6 +4,7 @@ import re
 from typing import List, Optional
 from google import genai
 from google.genai import types
+from lightrag.rerank import jina_rerank
 from ollama import AsyncClient as OllamaAsyncClient
 from backend.config import settings
 
@@ -39,6 +40,10 @@ def get_ollama_client():
     if _ollama_client is None:
         _ollama_client = OllamaAsyncClient(host=settings.OLLAMA_BASE_URL)
     return _ollama_client
+
+
+def hybrid_rerank_available() -> bool:
+    return bool(settings.HYBRID_ENABLE_RERANK and (settings.JINA_API_KEY or "").strip())
 
 class QwenEmbeddingFunc:
     def __init__(self):
@@ -344,6 +349,21 @@ async def ollama_index_llm_func(
             f"Last error: {last_error}"
         ) from last_error
     raise RuntimeError("Ollama indexing request failed without a response.")
+
+
+async def jina_rerank_model_func(
+    query: str,
+    documents: List[str],
+    top_n: int | None = None,
+):
+    return await jina_rerank(
+        query=query,
+        documents=documents,
+        top_n=top_n,
+        api_key=settings.JINA_API_KEY,
+        model=settings.JINA_RERANK_MODEL,
+        base_url=settings.JINA_RERANK_BASE_URL,
+    )
 
 
 # Backward-compatible alias for existing imports/tests.
