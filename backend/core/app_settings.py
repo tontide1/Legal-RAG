@@ -187,9 +187,11 @@ def get_graph_provider_settings_service() -> AppSettingsService:
 
 
 async def close_graph_provider_settings() -> None:
-    global _service
+    global _service, _nine_router_client
     if _service is None:
+        _nine_router_client = None
         return
 
     await _service.close()
     _service = None
+    _nine_router_client = None
