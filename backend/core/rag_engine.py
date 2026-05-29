@@ -4,6 +4,7 @@ from lightrag import LightRAG
 from lightrag.utils import EmbeddingFunc
 
 from backend.config import settings
+from backend.core.app_settings import SUPPORTED_GRAPH_BUILD_PROVIDERS
 from backend.core.llm_services import (
     LocalSentenceTransformerEmbeddingFunc,
     QwenEmbeddingFunc,
@@ -47,9 +48,9 @@ class RAGEngine:
             raise ValueError("Unsupported ingest provider: value must be a string")
 
         normalized = provider.strip().lower()
-        if normalized not in {"ollama", "9router"}:
+        if normalized not in SUPPORTED_GRAPH_BUILD_PROVIDERS:
             raise ValueError(
-                f"Unsupported ingest provider '{provider}'. Use one of: 'ollama', '9router'."
+                f"Unsupported ingest provider '{provider}'. Use one of: {', '.join(sorted(SUPPORTED_GRAPH_BUILD_PROVIDERS))}."
             )
         return normalized
 
@@ -107,7 +108,7 @@ class RAGEngine:
             )
 
         raise ValueError(
-            f"Unsupported ingest provider '{provider}'. Use one of: 'ollama', '9router'."
+            f"Unsupported ingest provider '{provider}'. Use one of: {', '.join(sorted(SUPPORTED_GRAPH_BUILD_PROVIDERS))}."
         )
 
     @classmethod
