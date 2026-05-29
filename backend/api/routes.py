@@ -7,6 +7,7 @@ import shutil
 import os
 from backend.config import settings
 from backend.core.document_processor import DocumentProcessor
+from backend.core.hybrid_query import run_hybrid_query
 from backend.core.legal_chunker import normalize_for_lightrag
 
 router = APIRouter()
@@ -70,18 +71,22 @@ async def chat(request: ChatRequest):
                     request.message,
                     param=_build_query_param(request, mode="naive"),
                 )
-                hybrid_response = await rag.aquery(
+                hybrid_response = await run_hybrid_query(
+                    rag,
                     request.message,
-                    param=_build_query_param(request, mode="hybrid"),
+                    request.history,
+                    stream=False,
                 )
                 return ComparisonResponse(
                     naive=ChatResponse(response=naive_response, mode="naive"),
                     hybrid=ChatResponse(response=hybrid_response, mode="hybrid")
                 )
             else:
-                response = await rag.aquery(
+                response = await run_hybrid_query(
+                    rag,
                     request.message,
-                    param=_build_query_param(request, mode="hybrid"),
+                    request.history,
+                    stream=False,
                 )
                 return ChatResponse(response=response, mode="hybrid")
         except Exception as e:
@@ -92,7 +97,7 @@ async def chat(request: ChatRequest):
         queue = asyncio.Queue()
         pending_tasks = set()
 
-        async def stream_wrapper(gen_func, mode):
+        async def stream_wrapper(gen_func, mode, fallback_func=None):
             try:
                 await queue.put(f"data: {json.dumps({'type': 'start', 'mode': mode})}\n\n")
                 generator = await gen_func
@@ -110,15 +115,14 @@ async def chat(request: ChatRequest):
                         emitted = True
                         await queue.put(f"data: {json.dumps({'type': 'chunk', 'mode': mode, 'content': normalized_result})}\n\n")
 
-                if not emitted:
-                    fallback = await rag.aquery(
-                        request.message,
-                        param=_build_query_param(request, mode=mode),
-                    )
+                if not emitted and fallback_func is not None:
+                    fallback = await fallback_func()
                     normalized_fallback = _normalize_text_response(fallback)
                     if not normalized_fallback:
                         raise RuntimeError(f"{mode} query returned no content.")
                     await queue.put(f"data: {json.dumps({'type': 'chunk', 'mode': mode, 'content': normalized_fallback})}\n\n")
+                elif not emitted:
+                    raise RuntimeError(f"{mode} query returned no content.")
             except Exception as e:
                 print(f"STREAM ERROR ({mode}): {str(e)}")
                 await queue.put(f"data: {json.dumps({'type': 'error', 'mode': mode, 'message': str(e)})}\n\n")
@@ -133,15 +137,27 @@ async def chat(request: ChatRequest):
                             param=_build_query_param(request, mode="naive", stream=True),
                         ),
                         "naive",
+                        lambda: rag.aquery(
+                            request.message,
+                            param=_build_query_param(request, mode="naive"),
+                        ),
                     )
                 )
                 t2 = asyncio.create_task(
                     stream_wrapper(
-                        rag.aquery(
+                        run_hybrid_query(
+                            rag,
                             request.message,
-                            param=_build_query_param(request, mode="hybrid", stream=True),
+                            request.history,
+                            stream=True,
                         ),
                         "hybrid",
+                        lambda: run_hybrid_query(
+                            rag,
+                            request.message,
+                            request.history,
+                            stream=False,
+                        ),
                     )
                 )
                 pending_tasks.update([t1, t2])
@@ -160,9 +176,11 @@ async def chat(request: ChatRequest):
                 yield f"data: {json.dumps({'type': 'done'})}\n\n"
             else:
                 # Standard single stream
-                generator = await rag.aquery(
+                generator = await run_hybrid_query(
+                    rag,
                     request.message,
-                    param=_build_query_param(request, mode="hybrid", stream=True),
+                    request.history,
+                    stream=True,
                 )
                 emitted = False
                 if hasattr(generator, '__aiter__'):
@@ -178,9 +196,11 @@ async def chat(request: ChatRequest):
                         emitted = True
                         yield f"data: {json.dumps({'type': 'chunk', 'mode': 'hybrid', 'content': normalized_result})}\n\n"
                 if not emitted:
-                    fallback = await rag.aquery(
+                    fallback = await run_hybrid_query(
+                        rag,
                         request.message,
-                        param=_build_query_param(request, mode="hybrid"),
+                        request.history,
+                        stream=False,
                     )
                     normalized_fallback = _normalize_text_response(fallback)
                     if not normalized_fallback:
