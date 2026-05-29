@@ -137,6 +137,7 @@ def _build_gemini_prompt(
 
 
 def _build_ollama_index_system_prompt(system_prompt: str | None) -> str:
+    traffic_law_guidance = _build_traffic_law_extraction_guidance()
     strict_format_prompt = (
         "STRICT OUTPUT RULES:\n"
         "- Return only records in the exact extraction format requested.\n"
@@ -146,9 +147,24 @@ def _build_ollama_index_system_prompt(system_prompt: str | None) -> str:
         "- If unsure, return fewer well-formed records rather than malformed output."
     )
 
+    sections = [traffic_law_guidance]
     if system_prompt and system_prompt.strip():
-        return f"{system_prompt.strip()}\n\n{strict_format_prompt}"
-    return strict_format_prompt
+        sections.append(system_prompt.strip())
+    sections.append(strict_format_prompt)
+    return "\n\n".join(sections)
+
+
+def _build_traffic_law_extraction_guidance() -> str:
+    entity_types = "\n".join(f"- {entity_type}" for entity_type in settings.ENTITY_TYPES)
+    return (
+        "TRAFFIC-LAW GRAPH EXTRACTION:\n"
+        "- Preserve exact Vietnamese legal phrases, article labels, clause references, and sanction terms.\n"
+        "- Do not paraphrase or normalize legal citations, named authorities, subject classes, or violation names.\n"
+        "- Extract only entities and relations grounded in the provided text.\n"
+        "- Prefer the most specific traffic-law entity type that matches the source span.\n"
+        "Entity types:\n"
+        f"{entity_types}"
+    )
 
 
 def _looks_malformed_extraction_output(response_text: str) -> bool:

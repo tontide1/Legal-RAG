@@ -25,6 +25,17 @@ An advanced legal document assistant powered by **LightRAG**, localized for Viet
 - **Modern Chat Interface**: Beautiful React UI with Markdown support and source citations.
 - **Document Inventory**: Manage and track the status of all indexed legal documents.
 
+## Hybrid Retrieval Mode
+
+The comparison UI remains `naive vs hybrid`.
+
+- `naive` is the exact-passage baseline.
+- `hybrid` is tuned for traffic-law synthesis questions and now follows an anchor-first strategy:
+  1. identify one central `Điều khoản`
+  2. expand only into grounded scope, conditions, responsibilities, violations, and sanctions
+
+Changing `ENTITY_TYPES` requires re-indexing the uploaded legal corpus.
+
 ## 🛠 Tech Stack
 
 - **Backend**: Python 3.11, FastAPI, `lightrag-hku`

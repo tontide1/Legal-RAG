@@ -46,11 +46,34 @@ class Settings(BaseSettings):
     LIGHTRAG_CHUNK_SIZE: int = 600
     LIGHTRAG_CHUNK_OVERLAP_SIZE: int = 100
     GEMINI_MAX_RETRIES: int = 6
+    HYBRID_MAX_HISTORY_MESSAGES: int = 8
+    HYBRID_TOP_K: int = 20
+    HYBRID_CHUNK_TOP_K: int = 12
+    HYBRID_ANCHOR_CHUNK_LIMIT: int = 3
+    HYBRID_BUCKET_CHUNK_LIMIT: int = 2
     
     SUMMARY_LANGUAGE: str = "Vietnamese"
     ENTITY_TYPES: list[str] = [
-        "Văn bản pháp luật", "Điều khoản", "Cơ quan ban hành", "Đối tượng áp dụng", 
-        "Hành vi vi phạm", "Hình thức xử phạt", "Thời hạn", "Khái niệm pháp lý"
+        "Văn bản pháp luật",
+        "Điều khoản",
+        "Cơ quan ban hành",
+        "Đối tượng áp dụng",
+        "Thời hạn",
+        "Khái niệm pháp lý",
+        "Phạm vi áp dụng",
+        "Trách nhiệm",
+        "Ngoại lệ",
+        "Điều kiện áp dụng",
+        "Chủ thể có thẩm quyền",
+        "Phương tiện giao thông",
+        "Người tham gia giao thông",
+        "Hành vi bị cấm",
+        "Yêu cầu an toàn",
+        "Giấy phép / chứng chỉ",
+        "Dịch vụ hỗ trợ giao thông",
+        "Kết cấu hạ tầng giao thông",
+        "Hình thức xử phạt",
+        "Hành vi vi phạm",
     ]
     
     LIGHTRAG_WORKING_DIR: str = "./backend/data"
