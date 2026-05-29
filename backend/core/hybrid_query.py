@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from backend.config import settings
+from backend.core.llm_services import hybrid_rerank_available
 
 
 INSUFFICIENT_CONTEXT_MESSAGE = (
@@ -448,6 +449,7 @@ async def run_hybrid_query(
             history_turns=len(trimmed_history),
             ll_keywords=intent.ll_keywords,
             hl_keywords=intent.hl_keywords,
+            enable_rerank=hybrid_rerank_available(),
             include_references=True,
         ),
     )

@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 def _install_fake_lightrag(monkeypatch):
     lightrag_module = types.ModuleType("lightrag")
+    lightrag_module.__path__ = []
 
     class FakeQueryParam:
         def __init__(self, **kwargs):
@@ -16,6 +17,11 @@ def _install_fake_lightrag(monkeypatch):
 
     lightrag_module.QueryParam = FakeQueryParam
     monkeypatch.setitem(sys.modules, "lightrag", lightrag_module)
+
+    rerank_module = types.ModuleType("lightrag.rerank")
+    rerank_module.jina_rerank = lambda *args, **kwargs: None
+    monkeypatch.setitem(sys.modules, "lightrag.rerank", rerank_module)
+    lightrag_module.rerank = rerank_module
 
 
 def _load_module(monkeypatch):
@@ -235,6 +241,90 @@ def test_build_hybrid_context_orders_sections_and_includes_references(monkeypatc
     assert positions == sorted(positions)
     assert "Nguon: law.pdf - Điều 9" in context
     assert "Nguon: decree.pdf - Điều 4" in context
+
+
+def test_run_hybrid_query_enables_rerank_when_available(monkeypatch):
+    hybrid_query = _load_module(monkeypatch)
+    monkeypatch.setattr(hybrid_query, "hybrid_rerank_available", lambda: True)
+
+    monkeypatch.setattr(
+        hybrid_query,
+        "extract_hybrid_intent",
+        lambda query, history: hybrid_query.HybridIntent(
+            anchor_terms=["Điều 99"],
+            ll_keywords=["điều 99"],
+            hl_keywords=["quy định"],
+            focus_buckets=["scope"],
+        ),
+    )
+
+    class FakeRAG:
+        def __init__(self):
+            self.calls = []
+
+        async def aquery_data(self, query, param):
+            self.calls.append((query, param))
+            return {
+                "data": {
+                    "entities": [
+                        {"entity_name": "Điều 12", "entity_type": "Điều khoản", "description": "Khác"}
+                    ],
+                    "relationships": [],
+                    "chunks": [],
+                    "references": [],
+                }
+            }
+
+    rag = FakeRAG()
+
+    response = asyncio.run(hybrid_query.run_hybrid_query(rag, "Điều 99 quy định gì?", None))
+
+    assert "không đủ ngữ cảnh" in response.lower()
+    assert len(rag.calls) == 1
+    _, param = rag.calls[0]
+    assert param.enable_rerank is True
+
+
+def test_run_hybrid_query_disables_rerank_when_unavailable(monkeypatch):
+    hybrid_query = _load_module(monkeypatch)
+    monkeypatch.setattr(hybrid_query, "hybrid_rerank_available", lambda: False)
+
+    monkeypatch.setattr(
+        hybrid_query,
+        "extract_hybrid_intent",
+        lambda query, history: hybrid_query.HybridIntent(
+            anchor_terms=["Điều 99"],
+            ll_keywords=["điều 99"],
+            hl_keywords=["quy định"],
+            focus_buckets=["scope"],
+        ),
+    )
+
+    class FakeRAG:
+        def __init__(self):
+            self.calls = []
+
+        async def aquery_data(self, query, param):
+            self.calls.append((query, param))
+            return {
+                "data": {
+                    "entities": [
+                        {"entity_name": "Điều 12", "entity_type": "Điều khoản", "description": "Khác"}
+                    ],
+                    "relationships": [],
+                    "chunks": [],
+                    "references": [],
+                }
+            }
+
+    rag = FakeRAG()
+
+    response = asyncio.run(hybrid_query.run_hybrid_query(rag, "Điều 99 quy định gì?", None))
+
+    assert "không đủ ngữ cảnh" in response.lower()
+    assert len(rag.calls) == 1
+    _, param = rag.calls[0]
+    assert param.enable_rerank is False
 
 
 def test_run_hybrid_query_returns_insufficient_context_when_no_anchor(monkeypatch):

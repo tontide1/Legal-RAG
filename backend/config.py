@@ -8,6 +8,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/law_assistant"
+    GRAPH_BUILD_PROVIDER_DEFAULT: str = "ollama"
+    DEFAULT_GRAPH_BUILD_PROVIDER: str = GRAPH_BUILD_PROVIDER_DEFAULT
     
     # Postgres individual components for LightRAG
     POSTGRES_HOST: str = "localhost"
@@ -20,6 +22,7 @@ class Settings(BaseSettings):
     
     OPENROUTER_API_KEY: Optional[str] = None
     GOOGLE_API_KEY: Optional[str] = None
+    JINA_API_KEY: Optional[str] = None
     POPPLER_PATH: Optional[str] = None
     OLLAMA_BASE_URL: str = "http://host.docker.internal:11434"
     OLLAMA_INDEX_MODEL: str = "qwen2.5:3b"
@@ -27,6 +30,13 @@ class Settings(BaseSettings):
     OLLAMA_TIMEOUT_SECONDS: int = 180
     OLLAMA_MAX_RETRIES: int = 2
     OLLAMA_RETRY_DELAY_SECONDS: int = 5
+
+    NINE_ROUTER_BASE_URL: str = "http://host.docker.internal:20128/v1"
+    NINE_ROUTER_API_KEY: Optional[str] = None
+    NINE_ROUTER_INDEX_MODEL: str = "qwen2.5:3b"
+    NINE_ROUTER_TIMEOUT_SECONDS: int = 180
+    NINE_ROUTER_MAX_RETRIES: int = 2
+    NINE_ROUTER_RETRY_DELAY_SECONDS: int = 5
     
     EMBEDDING_BACKEND: str = "sentence_transformers"
     EMBEDDING_MODEL: str = "huyydangg/DEk21_hcmute_embedding"
@@ -51,6 +61,9 @@ class Settings(BaseSettings):
     HYBRID_CHUNK_TOP_K: int = 12
     HYBRID_ANCHOR_CHUNK_LIMIT: int = 3
     HYBRID_BUCKET_CHUNK_LIMIT: int = 2
+    JINA_RERANK_MODEL: str = "jina-reranker-v2-base-multilingual"
+    JINA_RERANK_BASE_URL: str = "https://api.jina.ai/v1/rerank"
+    HYBRID_ENABLE_RERANK: bool = True
     
     SUMMARY_LANGUAGE: str = "Vietnamese"
     ENTITY_TYPES: list[str] = [

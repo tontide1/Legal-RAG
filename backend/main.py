@@ -2,15 +2,23 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.api.routes import router as api_router
+from backend.core.app_settings import (
+    close_graph_provider_settings,
+    initialize_graph_provider_settings,
+)
 from backend.core.rag_engine import RAGEngine
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize RAG Engine (Postgres pools, etc.)
-    await RAGEngine.initialize()
-    yield
-    # Shutdown logic: Cleanly close DB connections
-    await RAGEngine.finalize()
+    try:
+        # Warm the query engine at startup; ingest providers are initialized lazily.
+        await initialize_graph_provider_settings()
+        await RAGEngine.initialize()
+        yield
+    finally:
+        # Shutdown logic: Cleanly close DB connections
+        await RAGEngine.finalize()
+        await close_graph_provider_settings()
 
 app = FastAPI(
     title="Traffic Law Assistant API",

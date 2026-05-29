@@ -202,8 +202,9 @@ Request:
 Behavior:
 
 - reject any unsupported provider value with `400`
-- when switching to `ollama`, save immediately
-- when switching to `9router`, run a backend validation request against the configured local proxy before saving
+- this endpoint is called only when the user explicitly clicks `Save` in the UI
+- when saving `ollama`, persist immediately
+- when saving `9router`, run a backend validation request against the configured local proxy before saving
 - if validation passes, persist the new value and return it
 - if validation fails, do not change the stored setting
 
@@ -281,25 +282,28 @@ File indexed using graph provider: 9router
 
 ## UI Design
 
-Add a compact global provider control near the existing upload component.
+Add a dedicated graph-provider settings section in the existing sidebar, separate from the upload card.
 
 UI behavior:
 
 - on load, fetch current provider
-- optionally fetch available options
+- fetch available options for labels and allowed values
 - show a selector labeled `Graph Build Provider`
-- when the user changes the value, call `PUT /api/settings/graph-provider`
-- while saving, disable the selector
-- when switching to `9router`, show a transient status like `Checking 9router...`
-- if save succeeds, keep the new selection and show success feedback
-- if save fails, revert to the previous value and show the backend error
+- show a separate `Save` action in the same settings section
+- changing the selector only updates local UI state; it does not persist immediately
+- if the selected value differs from the saved value, show unsaved state and enable `Save`
+- when the user clicks `Save`, call `PUT /api/settings/graph-provider`
+- while saving, disable the selector and the `Save` button
+- if the pending value is `9router`, show a transient status like `Checking 9router...` during the save request
+- if save succeeds, keep the new selection as the saved state and show success feedback
+- if save fails, keep the prior saved value as authoritative, restore the selector to that value, and show the backend error
 
 The upload button does not allow per-file provider selection. It only reflects the current global state, for example:
 
 - `Graph build provider: Ollama`
 - `Graph build provider: 9router Local`
 
-No dedicated settings page is required for this feature. The upload area is the correct place because the setting only affects indexing/build-graph behavior.
+No dedicated settings page is required for this feature. A separate settings section inside the existing sidebar is enough because the setting only affects indexing/build-graph behavior, while keeping upload actions and global configuration visually distinct.
 
 ## Runtime Behavior and Caching
 
