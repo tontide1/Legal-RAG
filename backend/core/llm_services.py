@@ -12,6 +12,7 @@ from backend.config import settings
 _openrouter_client: Optional[openai.AsyncOpenAI] = None
 _gemini_client: Optional[genai.Client] = None
 _ollama_client: Optional[OllamaAsyncClient] = None
+_nine_router_client: Optional[openai.AsyncOpenAI] = None
 _gemini_request_semaphore = asyncio.Semaphore(1)
 
 def get_openrouter_client():
@@ -40,6 +41,22 @@ def get_ollama_client():
     if _ollama_client is None:
         _ollama_client = OllamaAsyncClient(host=settings.OLLAMA_BASE_URL)
     return _ollama_client
+
+
+def get_nine_router_client():
+    global _nine_router_client
+    if _nine_router_client is None:
+        api_key = (settings.NINE_ROUTER_API_KEY or "").strip()
+        if not api_key:
+            raise RuntimeError(
+                "NINE_ROUTER_API_KEY is not configured. Set NINE_ROUTER_API_KEY in .env "
+                "to enable 9router indexing."
+            )
+        _nine_router_client = openai.AsyncOpenAI(
+            api_key=api_key,
+            base_url=settings.NINE_ROUTER_BASE_URL,
+        )
+    return _nine_router_client
 
 
 def hybrid_rerank_available() -> bool:
@@ -157,6 +174,27 @@ def _build_ollama_index_system_prompt(system_prompt: str | None) -> str:
         sections.append(system_prompt.strip())
     sections.append(strict_format_prompt)
     return "\n\n".join(sections)
+
+
+def _build_openai_index_messages(
+    prompt: str,
+    system_prompt: str | None = None,
+    history: List[dict] | None = None,
+) -> list[dict[str, str]]:
+    messages: list[dict[str, str]] = []
+
+    if system_prompt and system_prompt.strip():
+        messages.append({"role": "system", "content": system_prompt.strip()})
+
+    if history:
+        for item in history:
+            role = str(item.get("role", "user")).strip() or "user"
+            content = str(item.get("content", "")).strip()
+            if content:
+                messages.append({"role": role, "content": content})
+
+    messages.append({"role": "user", "content": prompt.strip()})
+    return messages
 
 
 def _build_traffic_law_extraction_guidance() -> str:
@@ -349,6 +387,111 @@ async def ollama_index_llm_func(
             f"Last error: {last_error}"
         ) from last_error
     raise RuntimeError("Ollama indexing request failed without a response.")
+
+
+async def validate_nine_router_connection() -> None:
+    client = get_nine_router_client()
+    try:
+        response = await asyncio.wait_for(
+            client.chat.completions.create(
+                model=settings.NINE_ROUTER_INDEX_MODEL,
+                messages=[{"role": "user", "content": "Respond with OK"}],
+                temperature=0.0,
+                max_tokens=8,
+            ),
+            timeout=min(settings.NINE_ROUTER_TIMEOUT_SECONDS, 15),
+        )
+    except Exception as error:
+        raise RuntimeError(
+            f"9router local proxy is not reachable at {settings.NINE_ROUTER_BASE_URL}: {error}"
+        ) from error
+
+    response_text = (
+        response.choices[0].message.content
+        if response.choices and response.choices[0].message
+        else ""
+    )
+    if not str(response_text).strip():
+        raise RuntimeError(
+            f"9router local proxy returned an empty validation response at "
+            f"{settings.NINE_ROUTER_BASE_URL}"
+        )
+
+
+async def nine_router_index_llm_func(
+    prompt: str,
+    system_prompt: str = None,
+    history: List[dict] = None,
+    **kwargs
+) -> str:
+    client = get_nine_router_client()
+    messages = _build_openai_index_messages(
+        prompt,
+        system_prompt=_build_ollama_index_system_prompt(system_prompt),
+        history=history,
+    )
+    requested_max_tokens = kwargs.get("max_tokens")
+    max_output_tokens = settings.LLM_MAX_TOKENS if requested_max_tokens is None else min(
+        int(requested_max_tokens), settings.LLM_MAX_TOKENS
+    )
+
+    last_error: Exception | None = None
+    retry_messages = messages
+
+    for attempt in range(1, settings.NINE_ROUTER_MAX_RETRIES + 1):
+        try:
+            response = await asyncio.wait_for(
+                client.chat.completions.create(
+                    model=settings.NINE_ROUTER_INDEX_MODEL,
+                    messages=retry_messages,
+                    temperature=float(kwargs.get("temperature", 0.0)),
+                    max_tokens=max_output_tokens,
+                ),
+                timeout=settings.NINE_ROUTER_TIMEOUT_SECONDS,
+            )
+            response_text = ""
+            if response.choices and response.choices[0].message:
+                response_text = str(response.choices[0].message.content or "").strip()
+
+            if response_text and _looks_malformed_extraction_output(response_text):
+                print(
+                    f"LLM WARNING: 9router extraction output looked malformed on attempt "
+                    f"{attempt}/{settings.NINE_ROUTER_MAX_RETRIES}. Retrying with stricter reminder."
+                )
+                if attempt >= settings.NINE_ROUTER_MAX_RETRIES:
+                    return response_text
+                retry_messages = retry_messages + [{
+                    "role": "user",
+                    "content": (
+                        "FINAL REMINDER: return only exact extraction records with no prose and no extra fields."
+                    ),
+                }]
+                await asyncio.sleep(settings.NINE_ROUTER_RETRY_DELAY_SECONDS)
+                continue
+
+            return response_text
+        except asyncio.TimeoutError as error:
+            last_error = error
+            print(
+                f"LLM TIMEOUT: 9router request exceeded {settings.NINE_ROUTER_TIMEOUT_SECONDS}s "
+                f"on attempt {attempt}/{settings.NINE_ROUTER_MAX_RETRIES}."
+            )
+        except Exception as error:
+            last_error = error
+            print(
+                f"LLM ERROR: 9router request failed on attempt {attempt}/"
+                f"{settings.NINE_ROUTER_MAX_RETRIES}: {error}"
+            )
+
+        if attempt < settings.NINE_ROUTER_MAX_RETRIES:
+            await asyncio.sleep(settings.NINE_ROUTER_RETRY_DELAY_SECONDS)
+
+    if last_error is not None:
+        raise RuntimeError(
+            "9router indexing request failed after retries. "
+            f"Last error: {last_error}"
+        ) from last_error
+    raise RuntimeError("9router indexing request failed without a response.")
 
 
 async def jina_rerank_model_func(
