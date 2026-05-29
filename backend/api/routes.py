@@ -21,10 +21,10 @@ def get_rag_engine():
     return RAGEngine.get_query_instance()
 
 
-def get_ingest_rag_engine():
+async def get_ingest_rag_engine(provider: str = "ollama"):
     from backend.core.rag_engine import RAGEngine
 
-    return RAGEngine.get_ingest_instance()
+    return await RAGEngine.get_ingest_instance(provider)
 
 
 def _normalize_text_response(value) -> str:
@@ -270,7 +270,7 @@ async def upload_file(file: UploadFile = File(...)):
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        rag = get_ingest_rag_engine()
+        rag = await get_ingest_rag_engine()
         existing_status = await _find_existing_document_status(rag, filename)
         if existing_status in {"processing", "pending", "processed", "success", "completed"}:
             raise HTTPException(

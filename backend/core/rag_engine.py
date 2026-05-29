@@ -17,6 +17,7 @@ from backend.core.llm_services import (
 class RAGEngine:
     _query_instance = None
     _ingest_instances = {}
+    _ingest_locks = {}
 
     @staticmethod
     def _build_embedding_func():
@@ -128,6 +129,7 @@ class RAGEngine:
     async def finalize(cls):
         cls._query_instance = None
         cls._ingest_instances = {}
+        cls._ingest_locks = {}
         print("INFO: RAG Engine connections closed.")
 
     @classmethod
@@ -140,19 +142,25 @@ class RAGEngine:
     async def get_ingest_instance(cls, provider: str = "ollama"):
         provider_key = cls._normalize_ingest_provider(provider)
 
-        instance = cls._ingest_instances.get(provider_key)
-        if instance is not None:
+        lock = cls._ingest_locks.get(provider_key)
+        if lock is None:
+            lock = asyncio.Lock()
+            cls._ingest_locks[provider_key] = lock
+
+        async with lock:
+            instance = cls._ingest_instances.get(provider_key)
+            if instance is not None:
+                return instance
+
+            cls._set_postgres_env()
+            instance = cls._build_ingest_rag(provider_key)
+            cls._ingest_instances[provider_key] = instance
+
+            initialize_storages = getattr(instance, "initialize_storages", None)
+            if callable(initialize_storages):
+                await initialize_storages()
+
             return instance
-
-        cls._set_postgres_env()
-        instance = cls._build_ingest_rag(provider_key)
-        cls._ingest_instances[provider_key] = instance
-
-        initialize_storages = getattr(instance, "initialize_storages", None)
-        if callable(initialize_storages):
-            await initialize_storages()
-
-        return instance
 
     @classmethod
     def get_instance(cls):

@@ -54,7 +54,11 @@ def test_upload_cleans_temp_file_on_failure(tmp_path, monkeypatch):
             return "noi dung"
 
     monkeypatch.setattr(routes, "document_processor", FakeProcessor())
-    monkeypatch.setattr(routes, "get_ingest_rag_engine", lambda: FakeRAG())
+    
+    async def fake_get_ingest_rag_engine(provider: str = "ollama"):
+        return FakeRAG()
+
+    monkeypatch.setattr(routes, "get_ingest_rag_engine", fake_get_ingest_rag_engine)
 
     with pytest.raises(Exception) as exc_info:
         asyncio.run(routes.upload_file(file))
@@ -90,7 +94,11 @@ def test_upload_normalizes_and_uses_lightrag_split(tmp_path, monkeypatch):
 
     fake_rag = FakeRAG()
     monkeypatch.setattr(routes, "document_processor", FakeProcessor())
-    monkeypatch.setattr(routes, "get_ingest_rag_engine", lambda: fake_rag)
+    
+    async def fake_get_ingest_rag_engine(provider: str = "ollama"):
+        return fake_rag
+
+    monkeypatch.setattr(routes, "get_ingest_rag_engine", fake_get_ingest_rag_engine)
 
     response = asyncio.run(routes.upload_file(file))
 
@@ -141,7 +149,11 @@ def test_upload_returns_conflict_for_existing_document(tmp_path, monkeypatch):
             raise AssertionError("extract_text should not run for duplicate files")
 
     monkeypatch.setattr(routes, "document_processor", FakeProcessor())
-    monkeypatch.setattr(routes, "get_ingest_rag_engine", lambda: FakeRAG())
+    
+    async def fake_get_ingest_rag_engine(provider: str = "ollama"):
+        return FakeRAG()
+
+    monkeypatch.setattr(routes, "get_ingest_rag_engine", fake_get_ingest_rag_engine)
 
     with pytest.raises(Exception) as exc_info:
         asyncio.run(routes.upload_file(file))
