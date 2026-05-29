@@ -168,6 +168,20 @@ def test_bucket_expansion_does_not_match_khi_inside_unrelated_words(monkeypatch)
     assert buckets["conditions"] == []
 
 
+def test_chunk_mentions_anchor_does_not_match_partial_article_numbers(monkeypatch):
+    hybrid_query = _load_module(monkeypatch)
+
+    chunk = {
+        "id": "article-90",
+        "content": "Điều 90 quy định về nội dung khác.",
+        "metadata": {"source": "law.pdf", "article": "Điều 90"},
+        "reference": {"source": "law.pdf", "article": "Điều 90"},
+    }
+
+    assert hybrid_query._chunk_mentions_anchor(chunk, "Điều 9") is False
+    assert hybrid_query._chunk_mentions_anchor(chunk, "Điều 90") is True
+
+
 def test_build_hybrid_context_orders_sections_and_includes_references(monkeypatch):
     hybrid_query = _load_module(monkeypatch)
 

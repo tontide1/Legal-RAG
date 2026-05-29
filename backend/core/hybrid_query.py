@@ -227,7 +227,14 @@ def _chunk_mentions_anchor(chunk: dict[str, Any], anchor_name: str) -> bool:
     article = _normalize_for_match(metadata.get("article", ""))
     reference = chunk.get("reference") or {}
     reference_article = _normalize_for_match(reference.get("article", ""))
-    return bool(anchor_key and (anchor_key in content or anchor_key == article or anchor_key == reference_article))
+    return bool(
+        anchor_key
+        and (
+            _term_in_text(content, anchor_name)
+            or anchor_key == article
+            or anchor_key == reference_article
+        )
+    )
 
 
 def _anchor_chunks(data: dict[str, Any], anchor_name: str) -> list[dict[str, Any]]:
