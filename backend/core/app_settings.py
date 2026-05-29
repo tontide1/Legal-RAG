@@ -9,7 +9,11 @@ from backend.config import settings
 
 
 GRAPH_BUILD_PROVIDER_KEY = "graph_build_provider"
-SUPPORTED_GRAPH_BUILD_PROVIDERS = {"ollama", "9router"}
+GRAPH_PROVIDER_OPTIONS = (
+    {"value": "ollama", "label": "Ollama"},
+    {"value": "9router", "label": "9router Local"},
+)
+SUPPORTED_GRAPH_BUILD_PROVIDERS = {option["value"] for option in GRAPH_PROVIDER_OPTIONS}
 
 CREATE_APP_SETTINGS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS app_settings (

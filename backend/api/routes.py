@@ -16,7 +16,10 @@ import asyncio
 import shutil
 import os
 from backend.config import settings
-from backend.core.app_settings import get_graph_provider_settings_service
+from backend.core.app_settings import (
+    GRAPH_PROVIDER_OPTIONS,
+    get_graph_provider_settings_service,
+)
 from backend.core.document_processor import DocumentProcessor
 from backend.core.hybrid_query import run_hybrid_query
 from backend.core.legal_chunker import normalize_for_lightrag
@@ -48,10 +51,7 @@ async def get_graph_provider_settings():
 @router.get("/settings/graph-provider/options", response_model=GraphProviderOptionsResponse)
 async def get_graph_provider_options():
     return GraphProviderOptionsResponse(
-        options=[
-            GraphProviderOption(value="ollama", label="Ollama"),
-            GraphProviderOption(value="9router", label="9router Local"),
-        ]
+        options=[GraphProviderOption(**option) for option in GRAPH_PROVIDER_OPTIONS]
     )
 
 
