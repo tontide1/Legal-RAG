@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import ChatInterface from './components/ChatInterface'
 import FileUpload from './components/FileUpload'
 import { Scale, Database, Shield, Share2, FileText, ExternalLink, Columns } from 'lucide-react'
+import GraphProviderSettings from './components/GraphProviderSettings'
 import client from './api/client'
 
 function App() {
@@ -83,6 +84,11 @@ function App() {
               <div className={`w-3 h-3 rounded-full ${dbStatus === 'connected' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-red-500'}`} />
               <span className="text-foreground">DB: {dbStatus === 'connected' ? 'Connected' : 'Disconnected'}</span>
             </div>
+          </section>
+
+          <section>
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Graph Build Settings</h2>
+            <GraphProviderSettings />
           </section>
 
           <section>

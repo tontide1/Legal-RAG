@@ -13,6 +13,8 @@ An advanced legal document assistant powered by **LightRAG**, localized for Viet
   ![KG Screenshot 1](docs/KGScreenshot1.png)
   ![KG Screenshot 2](docs/KGScreenshot2.png)
 
+- **Configurable Graph Builder**: A separate sidebar settings section lets you choose the global graph-build provider for future uploads.
+
 - **Comparison Mode**: Side-by-side RAG evaluation with parallel streaming.
 
   ![Comparison 1](docs/Comparison1.png)
@@ -36,12 +38,21 @@ The comparison UI remains `naive vs hybrid`.
 
 Changing `ENTITY_TYPES` requires re-indexing the uploaded legal corpus.
 
+## Graph Build Provider
+
+The sidebar includes a dedicated `Graph Build Settings` section for the global graph-build provider.
+
+- `ollama` keeps the local Ollama indexing path
+- `9router` uses the OpenAI-compatible local proxy configured by `NINE_ROUTER_*`
+
+The selected provider is stored in PostgreSQL and applies to all future uploads. Saving `9router` runs a backend validation check first, so the setting only changes when the proxy is reachable.
+
 ## 🛠 Tech Stack
 
 - **Backend**: Python 3.11, FastAPI, `lightrag-hku`
 - **Frontend**: Vite, React, TypeScript, Tailwind CSS, Shadcn UI
 - **Database**: PostgreSQL with `pgvector` (Vector) and `Apache AGE` (Graph)
-- **LLM/Embeddings**: Gemini Developer API for chat generation, Ollama for LightRAG indexing, Docling for no-OCR PDF text extraction, plus local Vietnamese legal embeddings with `huyydangg/DEk21_hcmute_embedding`
+- **LLM/Embeddings**: Gemini Developer API for chat generation, Ollama or 9router local for LightRAG indexing, Docling for no-OCR PDF text extraction, plus local Vietnamese legal embeddings with `huyydangg/DEk21_hcmute_embedding`
 - **Gemini response model**: `gemini-3.1-flash-lite` (default)
 - **Deployment**: Docker Compose
 
@@ -115,7 +126,7 @@ docker compose logs -f rag-ui
 The system consists of three main services:
 
 - `db`: Custom Postgres image with vector and graph extensions.
-- `backend`: Handles chat, PDF parsing, and document indexing.
+- `backend`: Handles chat, PDF parsing, document indexing, and global graph-provider settings.
 - `rag-ui`: Provides the Knowledge Graph visualization interface.
 
 ## 🇻🇳 Localization Details
