@@ -2,6 +2,29 @@ import asyncio
 import sys
 import types
 
+TRAFFIC_LAW_ENTITY_TYPES = [
+    "Văn bản pháp luật",
+    "Điều khoản",
+    "Cơ quan ban hành",
+    "Đối tượng áp dụng",
+    "Thời hạn",
+    "Khái niệm pháp lý",
+    "Phạm vi áp dụng",
+    "Trách nhiệm",
+    "Ngoại lệ",
+    "Điều kiện áp dụng",
+    "Chủ thể có thẩm quyền",
+    "Phương tiện giao thông",
+    "Người tham gia giao thông",
+    "Hành vi bị cấm",
+    "Yêu cầu an toàn",
+    "Giấy phép / chứng chỉ",
+    "Dịch vụ hỗ trợ giao thông",
+    "Kết cấu hạ tầng giao thông",
+    "Hình thức xử phạt",
+    "Hành vi vi phạm",
+]
+
 
 class FakeEmbeddingFunc:
     def __init__(self):
@@ -63,7 +86,7 @@ def test_initialize_warms_embedding_model_and_sets_timeout(monkeypatch):
         OLLAMA_INDEX_MODEL="qwen2.5:3b",
         OLLAMA_NUM_CTX=32768,
         SUMMARY_LANGUAGE="vi",
-        ENTITY_TYPES=["person"],
+        ENTITY_TYPES=TRAFFIC_LAW_ENTITY_TYPES,
     ))
 
     rag_engine.RAGEngine._query_instance = None
@@ -75,8 +98,10 @@ def test_initialize_warms_embedding_model_and_sets_timeout(monkeypatch):
     assert len(FakeLightRAG.init_kwargs) == 2
     assert FakeLightRAG.init_kwargs[0]["default_embedding_timeout"] == 180
     assert FakeLightRAG.init_kwargs[0]["llm_model_kwargs"] == {}
+    assert FakeLightRAG.init_kwargs[0]["addon_params"]["entity_types"] == TRAFFIC_LAW_ENTITY_TYPES
     assert FakeLightRAG.init_kwargs[1]["llm_model_name"] == "qwen2.5:3b"
     assert FakeLightRAG.init_kwargs[1]["llm_model_kwargs"] == {"options": {"num_ctx": 32768}}
+    assert FakeLightRAG.init_kwargs[1]["addon_params"]["entity_types"] == TRAFFIC_LAW_ENTITY_TYPES
     assert FakeLightRAG.storages_initialized == 2
 
 
