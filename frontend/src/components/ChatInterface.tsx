@@ -1,9 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, User, Bot, Loader2 } from 'lucide-react'
+import { Send, User, Bot } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import ReferenceCard from './ReferenceCard'
-import client from '../api/client'
 
 interface Message {
   id: string
@@ -21,18 +20,33 @@ interface ChatHistoryMessage {
   content: string
 }
 
+const RECENT_HISTORY_LIMIT = 8
+
 const normalizeChunkContent = (value: unknown): string => {
   if (value == null) return ''
   const text = String(value)
   return text.trim().toLowerCase() === 'none' ? '' : text
 }
 
+const getHistoryMessageContent = (message: Message): string => {
+  const hybridContent = message.comparison?.hybrid.content?.trim()
+  if (hybridContent) {
+    return hybridContent
+  }
+
+  const naiveContent = message.comparison?.naive.content?.trim()
+  if (naiveContent) {
+    return naiveContent
+  }
+
+  return (message.content ?? '').trim()
+}
+
 const buildChatHistory = (messages: Message[]): ChatHistoryMessage[] =>
   messages
     .filter(message => message.id !== 'initial')
     .map((message): ChatHistoryMessage | null => {
-      const content = message.comparison?.hybrid.content ?? message.content ?? ''
-      const normalizedContent = content.trim()
+      const normalizedContent = getHistoryMessageContent(message)
 
       if (!normalizedContent) {
         return null
@@ -44,7 +58,7 @@ const buildChatHistory = (messages: Message[]): ChatHistoryMessage[] =>
       }
     })
     .filter((message): message is ChatHistoryMessage => message !== null)
-    .slice(-8)
+    .slice(-RECENT_HISTORY_LIMIT)
 
 export default function ChatInterface({ comparisonMode }: { comparisonMode: boolean }) {
   const [messages, setMessages] = useState<Message[]>([
@@ -118,46 +132,60 @@ export default function ChatInterface({ comparisonMode }: { comparisonMode: bool
           const trimmedLine = line.trim()
           if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue
           
+          let data: any
           try {
-            const data = JSON.parse(trimmedLine.slice(6))
-            
-            if (data.type === 'chunk') {
-              const normalizedContent = normalizeChunkContent(data.content)
-              if (!normalizedContent) continue
-
-              setMessages(prev => prev.map(msg => {
-                if (msg.id !== assistantMsgId) return msg
-                
-                const newMsg = { ...msg }
-                if (data.mode === 'naive' && newMsg.comparison) {
-                  newMsg.comparison = {
-                    ...newMsg.comparison,
-                    naive: { ...newMsg.comparison.naive, content: newMsg.comparison.naive.content + normalizedContent }
-                  }
-                } else if (data.mode === 'hybrid') {
-                  if (newMsg.comparison) {
-                    newMsg.comparison = {
-                      ...newMsg.comparison,
-                      hybrid: { ...newMsg.comparison.hybrid, content: newMsg.comparison.hybrid.content + normalizedContent }
-                    }
-                  } else {
-                    newMsg.content = (newMsg.content || '') + normalizedContent
-                  }
-                }
-                return newMsg
-              }))
-            } else if (data.type === 'error') {
-              throw new Error(data.message)
-            }
+            data = JSON.parse(trimmedLine.slice(6))
           } catch (e) {
             // Ignore parsing errors for non-JSON lines if any
+            continue
+          }
+
+          if (data.type === 'error') {
+            throw new Error(data.message)
+          }
+
+          if (data.type === 'chunk') {
+            const normalizedContent = normalizeChunkContent(data.content)
+            if (!normalizedContent) continue
+
+            setMessages(prev => prev.map(msg => {
+              if (msg.id !== assistantMsgId) return msg
+
+              const newMsg = { ...msg }
+              if (data.mode === 'naive' && newMsg.comparison) {
+                newMsg.comparison = {
+                  ...newMsg.comparison,
+                  naive: { ...newMsg.comparison.naive, content: newMsg.comparison.naive.content + normalizedContent }
+                }
+              } else if (data.mode === 'hybrid') {
+                if (newMsg.comparison) {
+                  newMsg.comparison = {
+                    ...newMsg.comparison,
+                    hybrid: { ...newMsg.comparison.hybrid, content: newMsg.comparison.hybrid.content + normalizedContent }
+                  }
+                } else {
+                  newMsg.content = (newMsg.content || '') + normalizedContent
+                }
+              }
+              return newMsg
+            }))
           }
         }
       }
     } catch (error) {
+      const errorText = 'Sorry, I encountered an error processing your request.'
       setMessages(prev => prev.map(msg => 
         msg.id === assistantMsgId 
-          ? { ...msg, content: 'Sorry, I encountered an error processing your request.' } 
+          ? comparisonMode
+            ? {
+                ...msg,
+                content: errorText,
+                comparison: {
+                  naive: { content: errorText, sources: [] },
+                  hybrid: { content: errorText, sources: [] }
+                }
+              }
+            : { ...msg, content: errorText }
           : msg
       ))
     } finally {

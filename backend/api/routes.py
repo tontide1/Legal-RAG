@@ -59,6 +59,33 @@ def _build_query_param(request: ChatRequest, mode: str, stream: bool = False):
         conversation_history=request.history,
     )
 
+
+async def _stream_events(gen_func, mode, fallback_func=None):
+    generator = await gen_func
+    emitted = False
+
+    if hasattr(generator, '__aiter__'):
+        async for chunk in generator:
+            normalized_chunk = _normalize_text_response(chunk)
+            if not normalized_chunk:
+                continue
+            emitted = True
+            yield f"data: {json.dumps({'type': 'chunk', 'mode': mode, 'content': normalized_chunk})}\n\n"
+    else:
+        normalized_result = _normalize_text_response(generator)
+        if normalized_result:
+            emitted = True
+            yield f"data: {json.dumps({'type': 'chunk', 'mode': mode, 'content': normalized_result})}\n\n"
+
+    if not emitted and fallback_func is not None:
+        fallback = await fallback_func()
+        normalized_fallback = _normalize_text_response(fallback)
+        if not normalized_fallback:
+            raise RuntimeError(f"{mode} query returned no content.")
+        yield f"data: {json.dumps({'type': 'chunk', 'mode': mode, 'content': normalized_fallback})}\n\n"
+    elif not emitted:
+        raise RuntimeError(f"{mode} query returned no content.")
+
 @router.post("/chat")
 async def chat(request: ChatRequest):
     rag = get_rag_engine()
@@ -94,57 +121,74 @@ async def chat(request: ChatRequest):
 
     # Streaming Implementation
     async def event_generator():
-        queue = asyncio.Queue()
-        pending_tasks = set()
+        queue = asyncio.Queue(maxsize=100)
 
         async def stream_wrapper(gen_func, mode, fallback_func=None):
             try:
                 await queue.put(f"data: {json.dumps({'type': 'start', 'mode': mode})}\n\n")
-                generator = await gen_func
-                emitted = False
-                if hasattr(generator, '__aiter__'):
-                    async for chunk in generator:
-                        normalized_chunk = _normalize_text_response(chunk)
-                        if not normalized_chunk:
-                            continue
-                        emitted = True
-                        await queue.put(f"data: {json.dumps({'type': 'chunk', 'mode': mode, 'content': normalized_chunk})}\n\n")
-                else:
-                    normalized_result = _normalize_text_response(generator)
-                    if normalized_result:
-                        emitted = True
-                        await queue.put(f"data: {json.dumps({'type': 'chunk', 'mode': mode, 'content': normalized_result})}\n\n")
-
-                if not emitted and fallback_func is not None:
-                    fallback = await fallback_func()
-                    normalized_fallback = _normalize_text_response(fallback)
-                    if not normalized_fallback:
-                        raise RuntimeError(f"{mode} query returned no content.")
-                    await queue.put(f"data: {json.dumps({'type': 'chunk', 'mode': mode, 'content': normalized_fallback})}\n\n")
-                elif not emitted:
-                    raise RuntimeError(f"{mode} query returned no content.")
+                async for event in _stream_events(gen_func, mode, fallback_func):
+                    await queue.put(event)
             except Exception as e:
                 print(f"STREAM ERROR ({mode}): {str(e)}")
                 await queue.put(f"data: {json.dumps({'type': 'error', 'mode': mode, 'message': str(e)})}\n\n")
+            finally:
+                await queue.put(None)
 
         try:
             if request.comparison_mode:
-                # Start both in parallel
-                t1 = asyncio.create_task(
-                    stream_wrapper(
-                        rag.aquery(
-                            request.message,
-                            param=_build_query_param(request, mode="naive", stream=True),
-                        ),
-                        "naive",
-                        lambda: rag.aquery(
-                            request.message,
-                            param=_build_query_param(request, mode="naive"),
-                        ),
+                tasks = []
+                try:
+                    t1 = asyncio.create_task(
+                        stream_wrapper(
+                            rag.aquery(
+                                request.message,
+                                param=_build_query_param(request, mode="naive", stream=True),
+                            ),
+                            "naive",
+                            lambda: rag.aquery(
+                                request.message,
+                                param=_build_query_param(request, mode="naive"),
+                            ),
+                        )
                     )
-                )
-                t2 = asyncio.create_task(
-                    stream_wrapper(
+                    tasks.append(t1)
+                    t2 = asyncio.create_task(
+                        stream_wrapper(
+                            run_hybrid_query(
+                                rag,
+                                request.message,
+                                request.history,
+                                stream=True,
+                            ),
+                            "hybrid",
+                            lambda: run_hybrid_query(
+                                rag,
+                                request.message,
+                                request.history,
+                                stream=False,
+                            ),
+                        )
+                    )
+                    tasks.append(t2)
+                    completed = 0
+                    while completed < 2:
+                        item = await queue.get()
+                        if item is None:
+                            completed += 1
+                            continue
+                        yield item
+                finally:
+                    for task in tasks:
+                        if not task.done():
+                            task.cancel()
+                    if tasks:
+                        await asyncio.gather(*tasks, return_exceptions=True)
+
+                yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            else:
+                yield f"data: {json.dumps({'type': 'start', 'mode': 'hybrid'})}\n\n"
+                try:
+                    async for event in _stream_events(
                         run_hybrid_query(
                             rag,
                             request.message,
@@ -158,57 +202,15 @@ async def chat(request: ChatRequest):
                             request.history,
                             stream=False,
                         ),
-                    )
-                )
-                pending_tasks.update([t1, t2])
-                
-                while pending_tasks:
-                    # Wait for items in queue or for tasks to finish
-                    while not queue.empty():
-                        yield await queue.get()
-                    
-                    done, pending_tasks = await asyncio.wait(pending_tasks, timeout=0.1, return_when=asyncio.FIRST_COMPLETED)
-                    
-                    # Yield any new items added during wait
-                    while not queue.empty():
-                        yield await queue.get()
-                
-                yield f"data: {json.dumps({'type': 'done'})}\n\n"
-            else:
-                # Standard single stream
-                generator = await run_hybrid_query(
-                    rag,
-                    request.message,
-                    request.history,
-                    stream=True,
-                )
-                emitted = False
-                if hasattr(generator, '__aiter__'):
-                    async for chunk in generator:
-                        normalized_chunk = _normalize_text_response(chunk)
-                        if not normalized_chunk:
-                            continue
-                        emitted = True
-                        yield f"data: {json.dumps({'type': 'chunk', 'mode': 'hybrid', 'content': normalized_chunk})}\n\n"
-                else:
-                    normalized_result = _normalize_text_response(generator)
-                    if normalized_result:
-                        emitted = True
-                        yield f"data: {json.dumps({'type': 'chunk', 'mode': 'hybrid', 'content': normalized_result})}\n\n"
-                if not emitted:
-                    fallback = await run_hybrid_query(
-                        rag,
-                        request.message,
-                        request.history,
-                        stream=False,
-                    )
-                    normalized_fallback = _normalize_text_response(fallback)
-                    if not normalized_fallback:
-                        raise RuntimeError("Hybrid query returned no content.")
-                    yield f"data: {json.dumps({'type': 'chunk', 'mode': 'hybrid', 'content': normalized_fallback})}\n\n"
+                    ):
+                        yield event
+                except Exception as e:
+                    yield f"data: {json.dumps({'type': 'error', 'mode': 'hybrid', 'message': str(e)})}\n\n"
                 yield f"data: {json.dumps({'type': 'done'})}\n\n"
         except Exception as e:
-            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+            error_mode = "comparison" if request.comparison_mode else "hybrid"
+            yield f"data: {json.dumps({'type': 'error', 'mode': error_mode, 'message': str(e)})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
     return StreamingResponse(
         event_generator(), 

@@ -2,6 +2,9 @@ import asyncio
 import importlib
 import sys
 import types
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 
 def _install_fake_lightrag(monkeypatch):
@@ -56,6 +59,40 @@ def test_select_anchor_candidate_prefers_matching_dieu_khoan(monkeypatch):
     assert anchor["entity_type"] == "Điều khoản"
 
 
+def test_select_anchor_candidate_falls_back_to_anchor_chunks_when_entities_are_irrelevant(monkeypatch):
+    hybrid_query = _load_module(monkeypatch)
+
+    intent = hybrid_query.HybridIntent(
+        anchor_terms=["Điều 9"],
+        ll_keywords=["thiết bị điều khiển"],
+        hl_keywords=["quy tắc giao thông"],
+        focus_buckets=["scope"],
+    )
+    data = {
+        "entities": [
+            {"entity_name": "Khái niệm chung", "entity_type": "Khái niệm pháp lý", "description": "Không liên quan"}
+        ],
+        "relationships": [],
+        "chunks": [
+            {
+                "id": "anchor-1",
+                "content": "Điều 9 quy định về thiết bị điều khiển của xe.",
+                "metadata": {"source": "law.pdf", "article": "Điều 9"},
+            }
+        ],
+        "references": [
+            {"chunk_id": "anchor-1", "source": "law.pdf", "article": "Điều 9"}
+        ],
+    }
+
+    anchor = hybrid_query.select_anchor_candidate(data, "Điều 9 quy định gì?", intent)
+
+    assert anchor is not None
+    assert anchor["entity_name"] == "Điều 9"
+    assert anchor["entity_type"] == "Điều khoản"
+    assert [chunk["id"] for chunk in anchor["anchor_chunks"]] == ["anchor-1"]
+
+
 def test_bucket_expansion_groups_scope_and_conditions(monkeypatch):
     hybrid_query = _load_module(monkeypatch)
 
@@ -99,6 +136,36 @@ def test_bucket_expansion_groups_scope_and_conditions(monkeypatch):
     assert [chunk["id"] for chunk in buckets["conditions"]] == ["cond-1"]
     assert buckets["responsibilities"] == []
     assert buckets["violations"] == []
+
+
+def test_bucket_expansion_does_not_match_khi_inside_unrelated_words(monkeypatch):
+    hybrid_query = _load_module(monkeypatch)
+
+    intent = hybrid_query.HybridIntent(
+        anchor_terms=["Điều 9"],
+        ll_keywords=["thiết bị điều khiển"],
+        hl_keywords=["quy tắc giao thông"],
+        focus_buckets=["conditions"],
+    )
+    anchor = {"entity_name": "Điều 9", "entity_type": "Điều khoản", "anchor_chunks": []}
+    data = {
+        "entities": [],
+        "relationships": [],
+        "chunks": [
+            {
+                "id": "control-1",
+                "content": "Điều 9 quy định về thiết bị điều khiển của xe.",
+                "metadata": {"source": "law.pdf", "article": "Điều 9"},
+            }
+        ],
+        "references": [
+            {"chunk_id": "control-1", "source": "law.pdf", "article": "Điều 9"}
+        ],
+    }
+
+    buckets = hybrid_query.bucket_expansion_chunks(data, anchor, intent)
+
+    assert buckets["conditions"] == []
 
 
 def test_build_hybrid_context_orders_sections_and_includes_references(monkeypatch):

@@ -51,7 +51,7 @@ flowchart TD
 2. **Query**
    - UI sends a `ChatRequest` (`message`, optional `history`, `stream`, `comparison_mode`).
    - `routes.chat` builds a system prompt enforcing strict answer style.
-   - If `comparison_mode` is **false**, a single `rag.aquery` with `QueryParam(mode="hybrid")` is executed.
+   - If `comparison_mode` is **false**, `hybrid` now routes through the anchor-first orchestration in `backend/core/hybrid_query.py`.
    - If **true**, two parallel queries (`naive` and `hybrid`) are launched, their streamed chunks merged into Server‑Sent Events.
    - LightRAG performs retrieval:
      - **Vector search** using the selected embedding backend.
@@ -59,7 +59,16 @@ flowchart TD
    - Retrieved passages are fed to the LLM wrapper (`deepseek_llm_func`).
    - LLM returns either a full string or an async generator for streaming.
    - API streams JSON‑encoded SSE events back to the frontend, which renders them live.
-3. **Document Inventory**
+
+### Hybrid Query Flow
+
+1. frontend sends message + recent conversation history
+2. backend extracts traffic-law intent for `hybrid`
+3. LightRAG `aquery_data(...)` retrieves structured KG data
+4. backend selects one primary `Điều khoản` anchor
+5. backend groups supporting chunks by legal function
+6. Gemini generates the final grounded answer from the anchor-first context
+### Document Inventory
    - `/documents` endpoint reads `doc_status` storage to list indexed files and their processing status.
    - Frontend polls this endpoint every 10 seconds to keep the UI in sync.
 

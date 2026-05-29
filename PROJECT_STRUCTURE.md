@@ -16,6 +16,7 @@ Legal-RAG/
 │   │   └─ schemas.py         # Pydantic request/response models
 │   ├─ core/
 │   │   ├─ rag_engine.py      # LightRAG singleton, storage init, async query/insert
+│   │   ├─ hybrid_query.py    # Anchor-first hybrid retrieval orchestration for traffic-law synthesis queries
 │   │   ├─ document_processor.py      # Extracts text from PDF/TXT via Docling without OCR
 │   │   ├─ legal_chunker.py   # Normalizes text, enforces Điều boundaries, embeds breadcrumbs
 │   │   └─ llm_services.py    # Embedding functions & OpenRouter LLM wrapper
@@ -25,7 +26,7 @@ Legal-RAG/
 │       └─ test_upload_route.py
 ├─ data/               # LightRAG working directory (default ./backend/data)
 ├─ db/                 # Custom Postgres Docker image with pgvector & Apache AGE
-├─ docs/               # Screenshots & visual assets referenced in README
+├─ docs/               # Screenshots, benchmark docs, and visual assets referenced in README
 ├─ frontend/           # React UI built with Vite + Tailwind CSS
 │   ├─ index.html
 │   ├─ vite.config.ts
@@ -49,6 +50,11 @@ Legal-RAG/
 - **db/** – Dockerfile for Postgres with required extensions.
 - **data/** – Persistent storage for LightRAG indexes and temporary caches.
 - **docs/** – Visual documentation; not required for execution.
+
+## Notable Additions
+- `backend/core/hybrid_query.py` – Anchor-first hybrid retrieval orchestration for traffic-law synthesis queries.
+- `docs/hybrid-benchmark.md` – Manual synthesis benchmark and re-index checklist.
+- `backend/tests/test_chat_route.py`, `backend/tests/test_hybrid_query.py`, `backend/tests/test_llm_services.py` – coverage for the hybrid route, strategy, and indexing prompt updates.
 
 ## Files Worth Reading First
 1. `backend/config.py` – where all environment variables are defined.

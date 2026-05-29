@@ -12,9 +12,7 @@ def test_build_ollama_index_system_prompt_includes_traffic_law_guidance():
     assert prompt.startswith("TRAFFIC-LAW GRAPH EXTRACTION")
     assert "Preserve exact Vietnamese legal phrases" in prompt
     assert "Do not paraphrase or normalize legal citations" in prompt
-    assert "Văn bản pháp luật" in prompt
-    assert "Điều khoản" in prompt
-    assert "Hành vi vi phạm" in prompt
-    assert "Giấy phép / chứng chỉ" in prompt
+    for entity_type in llm_services.settings.ENTITY_TYPES:
+        assert f"- {entity_type}" in prompt
     assert "STRICT OUTPUT RULES:" in prompt
     assert "Extract graph records." in prompt

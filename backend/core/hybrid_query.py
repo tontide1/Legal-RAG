@@ -76,6 +76,15 @@ def _normalize_for_match(value: Any) -> str:
     return _normalize_text(value).casefold()
 
 
+def _term_in_text(text: Any, term: Any) -> bool:
+    normalized_text = _normalize_for_match(text)
+    normalized_term = _normalize_for_match(term)
+    if not normalized_text or not normalized_term:
+        return False
+    pattern = rf"(?<!\w){re.escape(normalized_term)}(?!\w)"
+    return bool(re.search(pattern, normalized_text))
+
+
 def _trim_history(history: list[dict] | None) -> list[dict]:
     if not history:
         return []
@@ -135,16 +144,15 @@ def _extract_keywords(text: str) -> list[str]:
 
 
 def _derive_focus_buckets(text: str) -> list[str]:
-    normalized = _normalize_for_match(text)
     focus_buckets: list[str] = []
 
-    if any(term in normalized for term in ("áp dụng", "đối với", "phạm vi")):
+    if any(_term_in_text(text, term) for term in ("áp dụng", "đối với", "phạm vi")):
         focus_buckets.append("scope")
-    if any(term in normalized for term in ("điều kiện", "trường hợp", "khi", "nếu")):
+    if any(_term_in_text(text, term) for term in ("điều kiện", "trường hợp", "khi", "nếu")):
         focus_buckets.append("conditions")
-    if any(term in normalized for term in ("trách nhiệm", "nghĩa vụ", "phải")):
+    if any(_term_in_text(text, term) for term in ("trách nhiệm", "nghĩa vụ", "phải")):
         focus_buckets.append("responsibilities")
-    if any(term in normalized for term in ("vi phạm", "xử phạt", "bị cấm")):
+    if any(_term_in_text(text, term) for term in ("vi phạm", "xử phạt", "bị cấm")):
         focus_buckets.append("violations")
 
     if not focus_buckets:
@@ -268,32 +276,31 @@ def _score_anchor_candidate(entity: dict[str, Any], query: str, intent: HybridIn
 
 def select_anchor_candidate(data: dict[str, Any], query: str, intent: HybridIntent) -> dict[str, Any] | None:
     candidates = list(data.get("entities") or [])
-    if not candidates:
-        synthetic_terms = intent.anchor_terms or _extract_anchor_terms(query)
-        if synthetic_terms:
-            anchor_name = synthetic_terms[0]
-            anchor_chunks = _anchor_chunks(data, anchor_name)
-            if anchor_chunks:
-                return {
-                    "entity_name": anchor_name,
-                    "entity_type": "Điều khoản",
-                    "description": "",
-                    "anchor_chunks": anchor_chunks,
-                }
-        return None
+    if candidates:
+        ranked = sorted(
+            candidates,
+            key=lambda entity: _score_anchor_candidate(entity, query, intent),
+            reverse=True,
+        )
+        best = ranked[0] if ranked else None
+        best_score = _score_anchor_candidate(best, query, intent) if best is not None else 0
+        if best is not None and best_score > 0:
+            anchor = dict(best)
+            anchor["anchor_chunks"] = _anchor_chunks(data, anchor.get("entity_name", ""))
+            return anchor
 
-    ranked = sorted(
-        candidates,
-        key=lambda entity: _score_anchor_candidate(entity, query, intent),
-        reverse=True,
-    )
-    best = ranked[0] if ranked else None
-    if best is None or _score_anchor_candidate(best, query, intent) <= 0:
-        return None
+    synthetic_terms = intent.anchor_terms or _extract_anchor_terms(query)
+    for anchor_name in synthetic_terms:
+        anchor_chunks = _anchor_chunks(data, anchor_name)
+        if anchor_chunks:
+            return {
+                "entity_name": anchor_name,
+                "entity_type": "Điều khoản",
+                "description": "",
+                "anchor_chunks": anchor_chunks,
+            }
 
-    anchor = dict(best)
-    anchor["anchor_chunks"] = _anchor_chunks(data, anchor.get("entity_name", ""))
-    return anchor
+    return None
 
 
 def _chunk_bucket(chunk: dict[str, Any], intent: HybridIntent) -> str | None:
@@ -302,7 +309,11 @@ def _chunk_bucket(chunk: dict[str, Any], intent: HybridIntent) -> str | None:
     matched_score = -1
 
     for bucket, terms in _BUCKET_RULES.items():
-        score = sum(1 for term in terms if term in content)
+        term_score = sum(1 for term in terms if _term_in_text(content, term))
+        if term_score <= 0:
+            continue
+
+        score = term_score
         if bucket in intent.focus_buckets:
             score += 2
         if score > matched_score:
