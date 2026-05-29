@@ -1,16 +1,16 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional, Any, Dict
 
 class ChatRequest(BaseModel):
     message: str
-    history: Optional[List[dict]] = []
+    history: Optional[List[dict]] = Field(default_factory=list)
     stream: Optional[bool] = False
     comparison_mode: Optional[bool] = False
 
 class ChatResponse(BaseModel):
     response: str
     mode: str = "hybrid"
-    sources: Optional[List[Dict[str, Any]]] = []
+    sources: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
 
 class ComparisonResponse(BaseModel):
     naive: ChatResponse

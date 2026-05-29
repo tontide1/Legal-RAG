@@ -48,32 +48,41 @@ async def _find_existing_document_status(rag, filename: str) -> str | None:
             return str(status)
     return None
 
-@router.post("/chat")
-async def chat(request: ChatRequest):
+
+def _build_query_param(request: ChatRequest, mode: str, stream: bool = False):
     from lightrag import QueryParam
 
+    return QueryParam(
+        mode=mode,
+        stream=stream,
+        conversation_history=request.history,
+    )
+
+@router.post("/chat")
+async def chat(request: ChatRequest):
     rag = get_rag_engine()
     print(f"DEBUG: Chat request received. message='{request.message[:20]}...', comparison_mode={request.comparison_mode}, stream={request.stream}")
-    
-    system_prompt = (
-        "STRICT INSTRUCTION: Output ONLY the relevant information. "
-        "DO NOT use introductory phrases like 'Dựa trên thông tin được cung cấp...', 'Dưới đây là...', etc. "
-        "Directly provide the answer based on the context."
-    )
-    
-    full_query = f"{request.message}\n\n{system_prompt}"
-    
+
     if not request.stream:
         try:
             if request.comparison_mode:
-                naive_response = await rag.aquery(full_query, param=QueryParam(mode="naive"))
-                hybrid_response = await rag.aquery(full_query, param=QueryParam(mode="hybrid"))
+                naive_response = await rag.aquery(
+                    request.message,
+                    param=_build_query_param(request, mode="naive"),
+                )
+                hybrid_response = await rag.aquery(
+                    request.message,
+                    param=_build_query_param(request, mode="hybrid"),
+                )
                 return ComparisonResponse(
                     naive=ChatResponse(response=naive_response, mode="naive"),
                     hybrid=ChatResponse(response=hybrid_response, mode="hybrid")
                 )
             else:
-                response = await rag.aquery(full_query, param=QueryParam(mode="hybrid"))
+                response = await rag.aquery(
+                    request.message,
+                    param=_build_query_param(request, mode="hybrid"),
+                )
                 return ChatResponse(response=response, mode="hybrid")
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
@@ -102,7 +111,10 @@ async def chat(request: ChatRequest):
                         await queue.put(f"data: {json.dumps({'type': 'chunk', 'mode': mode, 'content': normalized_result})}\n\n")
 
                 if not emitted:
-                    fallback = await rag.aquery(full_query, param=QueryParam(mode=mode))
+                    fallback = await rag.aquery(
+                        request.message,
+                        param=_build_query_param(request, mode=mode),
+                    )
                     normalized_fallback = _normalize_text_response(fallback)
                     if not normalized_fallback:
                         raise RuntimeError(f"{mode} query returned no content.")
@@ -114,8 +126,24 @@ async def chat(request: ChatRequest):
         try:
             if request.comparison_mode:
                 # Start both in parallel
-                t1 = asyncio.create_task(stream_wrapper(rag.aquery(full_query, param=QueryParam(mode="naive", stream=True)), "naive"))
-                t2 = asyncio.create_task(stream_wrapper(rag.aquery(full_query, param=QueryParam(mode="hybrid", stream=True)), "hybrid"))
+                t1 = asyncio.create_task(
+                    stream_wrapper(
+                        rag.aquery(
+                            request.message,
+                            param=_build_query_param(request, mode="naive", stream=True),
+                        ),
+                        "naive",
+                    )
+                )
+                t2 = asyncio.create_task(
+                    stream_wrapper(
+                        rag.aquery(
+                            request.message,
+                            param=_build_query_param(request, mode="hybrid", stream=True),
+                        ),
+                        "hybrid",
+                    )
+                )
                 pending_tasks.update([t1, t2])
                 
                 while pending_tasks:
@@ -132,7 +160,10 @@ async def chat(request: ChatRequest):
                 yield f"data: {json.dumps({'type': 'done'})}\n\n"
             else:
                 # Standard single stream
-                generator = await rag.aquery(full_query, param=QueryParam(mode="hybrid", stream=True))
+                generator = await rag.aquery(
+                    request.message,
+                    param=_build_query_param(request, mode="hybrid", stream=True),
+                )
                 emitted = False
                 if hasattr(generator, '__aiter__'):
                     async for chunk in generator:
@@ -147,7 +178,10 @@ async def chat(request: ChatRequest):
                         emitted = True
                         yield f"data: {json.dumps({'type': 'chunk', 'mode': 'hybrid', 'content': normalized_result})}\n\n"
                 if not emitted:
-                    fallback = await rag.aquery(full_query, param=QueryParam(mode="hybrid"))
+                    fallback = await rag.aquery(
+                        request.message,
+                        param=_build_query_param(request, mode="hybrid"),
+                    )
                     normalized_fallback = _normalize_text_response(fallback)
                     if not normalized_fallback:
                         raise RuntimeError("Hybrid query returned no content.")
