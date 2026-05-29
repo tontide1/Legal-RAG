@@ -6,6 +6,7 @@ from backend.config import settings
 from backend.core.llm_services import (
     LocalSentenceTransformerEmbeddingFunc,
     QwenEmbeddingFunc,
+    jina_rerank_model_func,
     gemini_chat_llm_func,
     ollama_index_llm_func,
 )
@@ -38,13 +39,20 @@ class RAGEngine:
         os.environ["POSTGRES_DATABASE"] = settings.POSTGRES_DATABASE
 
     @classmethod
-    def _build_rag(cls, llm_func, llm_model_name: str, llm_model_kwargs: dict | None = None):
+    def _build_rag(
+        cls,
+        llm_func,
+        llm_model_name: str,
+        llm_model_kwargs: dict | None = None,
+        rerank_model_func=None,
+    ):
         embedding_func = cls._build_embedding_func()
 
         return LightRAG(
             working_dir=settings.LIGHTRAG_WORKING_DIR,
             llm_model_func=llm_func,
             llm_model_name=llm_model_name,
+            rerank_model_func=rerank_model_func,
             llm_model_max_async=settings.LIGHTRAG_MAX_ASYNC,
             llm_model_kwargs=llm_model_kwargs or {},
             embedding_func_max_async=settings.LIGHTRAG_EMBEDDING_MAX_ASYNC,
@@ -77,6 +85,7 @@ class RAGEngine:
             cls._query_instance = cls._build_rag(
                 gemini_chat_llm_func,
                 settings.LLM_MODEL,
+                rerank_model_func=jina_rerank_model_func,
             )
             await cls._query_instance.initialize_storages()
 

@@ -27,7 +27,11 @@ class FakeLightRAG:
 
 def test_initialize_warms_embedding_model_and_sets_timeout(monkeypatch):
     lightrag_module = types.ModuleType("lightrag")
+    lightrag_module.__path__ = []
     lightrag_module.LightRAG = FakeLightRAG
+
+    rerank_module = types.ModuleType("lightrag.rerank")
+    rerank_module.jina_rerank = lambda *args, **kwargs: None
 
     utils_module = types.ModuleType("lightrag.utils")
 
@@ -38,6 +42,7 @@ def test_initialize_warms_embedding_model_and_sets_timeout(monkeypatch):
     utils_module.EmbeddingFunc = FakeEmbeddingFuncWrapper
 
     monkeypatch.setitem(sys.modules, "lightrag", lightrag_module)
+    monkeypatch.setitem(sys.modules, "lightrag.rerank", rerank_module)
     monkeypatch.setitem(sys.modules, "lightrag.utils", utils_module)
 
     import backend.core.rag_engine as rag_engine
@@ -76,9 +81,11 @@ def test_initialize_warms_embedding_model_and_sets_timeout(monkeypatch):
 
     assert len(FakeLightRAG.init_kwargs) == 2
     assert FakeLightRAG.init_kwargs[0]["default_embedding_timeout"] == 180
+    assert callable(FakeLightRAG.init_kwargs[0]["rerank_model_func"])
     assert FakeLightRAG.init_kwargs[0]["llm_model_kwargs"] == {}
     assert FakeLightRAG.init_kwargs[0]["addon_params"]["entity_types"] == app_settings.ENTITY_TYPES
     assert FakeLightRAG.init_kwargs[1]["llm_model_name"] == "qwen2.5:3b"
+    assert FakeLightRAG.init_kwargs[1].get("rerank_model_func") is None
     assert FakeLightRAG.init_kwargs[1]["llm_model_kwargs"] == {"options": {"num_ctx": 32768}}
     assert FakeLightRAG.init_kwargs[1]["addon_params"]["entity_types"] == app_settings.ENTITY_TYPES
     assert FakeLightRAG.storages_initialized == 2
