@@ -40,4 +40,6 @@ postgres_data/
 .agent/
 brain/
 .serena/
+.worktrees/
+worktrees/
 .antigravitycli/
