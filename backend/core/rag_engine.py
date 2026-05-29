@@ -112,7 +112,7 @@ class RAGEngine:
 
     @classmethod
     async def initialize(cls):
-        """Initialize separate LightRAG instances for query and ingest."""
+        """Warm the query LightRAG instance; ingest instances are created lazily per provider."""
         cls._set_postgres_env()
 
         if cls._query_instance is None:

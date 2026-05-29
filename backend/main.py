@@ -11,7 +11,7 @@ from backend.core.rag_engine import RAGEngine
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
-        # Initialize RAG Engine (Postgres pools, etc.)
+        # Warm the query engine at startup; ingest providers are initialized lazily.
         await initialize_graph_provider_settings()
         await RAGEngine.initialize()
         yield
