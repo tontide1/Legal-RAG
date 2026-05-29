@@ -11,10 +11,12 @@ def _install_fake_lightrag(monkeypatch):
     lightrag_module = types.ModuleType("lightrag")
 
     class FakeQueryParam:
-        def __init__(self, mode, stream=False, conversation_history=None):
+        def __init__(self, mode, stream=False, conversation_history=None, **kwargs):
             self.mode = mode
             self.stream = stream
             self.conversation_history = conversation_history
+            for key, value in kwargs.items():
+                setattr(self, key, value)
 
     lightrag_module.QueryParam = FakeQueryParam
     monkeypatch.setitem(sys.modules, "lightrag", lightrag_module)
@@ -39,6 +41,18 @@ def _load_chat_route_modules(monkeypatch):
         import backend.api.routes as routes
         from backend.api.schemas import ChatRequest
     return routes, ChatRequest
+
+
+def test_build_query_param_disables_rerank_for_naive(monkeypatch):
+    routes, ChatRequest = _load_chat_route_modules(monkeypatch)
+
+    request = ChatRequest(message="Hello")
+    param = routes._build_query_param(request, mode="naive")
+
+    assert param.mode == "naive"
+    assert param.stream is False
+    assert param.conversation_history == []
+    assert param.enable_rerank is False
 
 
 async def _collect_sse_payloads(streaming_response):

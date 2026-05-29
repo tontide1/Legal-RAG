@@ -53,11 +53,14 @@ async def _find_existing_document_status(rag, filename: str) -> str | None:
 def _build_query_param(request: ChatRequest, mode: str, stream: bool = False):
     from lightrag import QueryParam
 
-    return QueryParam(
-        mode=mode,
-        stream=stream,
-        conversation_history=request.history,
-    )
+    kwargs = {
+        "mode": mode,
+        "stream": stream,
+        "conversation_history": request.history,
+    }
+    if mode == "naive":
+        kwargs["enable_rerank"] = False
+    return QueryParam(**kwargs)
 
 
 async def _stream_events(gen_func, mode, fallback_func=None):
