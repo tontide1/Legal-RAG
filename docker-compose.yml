@@ -1,17 +1,22 @@
 services:
   db:
-    image: zulfifazhar/light-postgres:latest
-    pull_policy: always
+    build:
+      context: ./db
+      dockerfile: Dockerfile
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: law_assistant
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DATABASE:-law_assistant}
     ports:
       - "5435:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d law_assistant"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DATABASE:-law_assistant}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -33,25 +38,51 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DATABASE=${POSTGRES_DATABASE}
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - JINA_API_KEY=${JINA_API_KEY:-}
+      - REDIS_URL=${REDIS_URL:-}
+      - GRAPH_BUILD_PROVIDER_DEFAULT=${GRAPH_BUILD_PROVIDER_DEFAULT:-ollama}
+      - POPPLER_PATH=${POPPLER_PATH:-}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       - OLLAMA_INDEX_MODEL=${OLLAMA_INDEX_MODEL:-qwen2.5:3b}
       - OLLAMA_NUM_CTX=${OLLAMA_NUM_CTX:-8192}
       - OLLAMA_TIMEOUT_SECONDS=${OLLAMA_TIMEOUT_SECONDS:-180}
       - OLLAMA_MAX_RETRIES=${OLLAMA_MAX_RETRIES:-2}
       - OLLAMA_RETRY_DELAY_SECONDS=${OLLAMA_RETRY_DELAY_SECONDS:-5}
+      - NINE_ROUTER_BASE_URL=${NINE_ROUTER_BASE_URL:-http://host.docker.internal:20128/v1}
+      - NINE_ROUTER_API_KEY=${NINE_ROUTER_API_KEY:-}
+      - NINE_ROUTER_INDEX_MODEL=${NINE_ROUTER_INDEX_MODEL:-openrouter/gpt-oss-20b}
+      - NINE_ROUTER_TIMEOUT_SECONDS=${NINE_ROUTER_TIMEOUT_SECONDS:-60}
+      - NINE_ROUTER_MAX_RETRIES=${NINE_ROUTER_MAX_RETRIES:-2}
+      - NINE_ROUTER_RETRY_DELAY_SECONDS=${NINE_ROUTER_RETRY_DELAY_SECONDS:-3}
       - EMBEDDING_BACKEND=${EMBEDDING_BACKEND}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL}
       - EMBEDDING_DIM=${EMBEDDING_DIM}
       - EMBEDDING_DEVICE=${DOCKER_EMBEDDING_DEVICE:-cpu}
+      - EMBEDDING_MAX_TOKEN_SIZE=${EMBEDDING_MAX_TOKEN_SIZE:-384}
       - EMBEDDING_QUERY_INSTRUCTION=${EMBEDDING_QUERY_INSTRUCTION}
       - LLM_MODEL=${LLM_MODEL}
+      - LLM_MAX_TOKENS=${LLM_MAX_TOKENS:-1024}
+      - GEMINI_MAX_RETRIES=${GEMINI_MAX_RETRIES:-6}
+      - INDEX_MAX_OUTPUT_TOKENS=${INDEX_MAX_OUTPUT_TOKENS:-4096}
+      - LIGHTRAG_MAX_ASYNC=${LIGHTRAG_MAX_ASYNC:-1}
+      - LIGHTRAG_EMBEDDING_MAX_ASYNC=${LIGHTRAG_EMBEDDING_MAX_ASYNC:-2}
+      - LIGHTRAG_EMBEDDING_TIMEOUT=${LIGHTRAG_EMBEDDING_TIMEOUT:-180}
+      - LIGHTRAG_MAX_PARALLEL_INSERT=${LIGHTRAG_MAX_PARALLEL_INSERT:-1}
+      - HYBRID_ENABLE_RERANK=${HYBRID_ENABLE_RERANK:-true}
+      - HYBRID_MAX_HISTORY_MESSAGES=${HYBRID_MAX_HISTORY_MESSAGES:-8}
+      - HYBRID_TOP_K=${HYBRID_TOP_K:-5}
+      - HYBRID_CHUNK_TOP_K=${HYBRID_CHUNK_TOP_K:-10}
+      - HYBRID_ANCHOR_CHUNK_LIMIT=${HYBRID_ANCHOR_CHUNK_LIMIT:-3}
+      - HYBRID_BUCKET_CHUNK_LIMIT=${HYBRID_BUCKET_CHUNK_LIMIT:-2}
+      - JINA_RERANK_MODEL=${JINA_RERANK_MODEL:-jina-reranker-v2-base-multilingual}
+      - JINA_RERANK_BASE_URL=${JINA_RERANK_BASE_URL:-https://api.jina.ai/v1/rerank}
       - LIGHTRAG_WORKING_DIR=/app/backend/data
-      - LIGHTRAG_CHUNK_SIZE=${LIGHTRAG_CHUNK_SIZE:-600}
-      - LIGHTRAG_CHUNK_OVERLAP_SIZE=${LIGHTRAG_CHUNK_OVERLAP_SIZE:-100}
-      - SUMMARY_LANGUAGE=Vietnamese
-      - 'ENTITY_TYPES=["Văn bản pháp luật", "Điều khoản", "Cơ quan ban hành", "Đối tượng áp dụng", "Hành vi vi phạm", "Hình thức xử phạt", "Thời hạn", "Khái niệm pháp lý"]'
+      - LIGHTRAG_CHUNK_SIZE=${LIGHTRAG_CHUNK_SIZE:-300}
+      - LIGHTRAG_CHUNK_OVERLAP_SIZE=${LIGHTRAG_CHUNK_OVERLAP_SIZE:-50}
+      - SUMMARY_LANGUAGE=${SUMMARY_LANGUAGE:-Vietnamese}
+      - 'ENTITY_TYPES=["Văn bản pháp luật", "Điều khoản", "Cơ quan ban hành", "Đối tượng áp dụng", "Thời hạn", "Khái niệm pháp lý", "Phạm vi áp dụng", "Trách nhiệm", "Ngoại lệ", "Điều kiện áp dụng", "Chủ thể có thẩm quyền", "Phương tiện giao thông", "Người tham gia giao thông", "Hành vi bị cấm", "Yêu cầu an toàn", "Giấy phép / chứng chỉ", "Dịch vụ hỗ trợ giao thông", "Kết cấu hạ tầng giao thông", "Hình thức xử phạt", "Hành vi vi phạm"]'
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -90,17 +121,51 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DATABASE=${POSTGRES_DATABASE}
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - JINA_API_KEY=${JINA_API_KEY:-}
+      - REDIS_URL=${REDIS_URL:-}
+      - GRAPH_BUILD_PROVIDER_DEFAULT=${GRAPH_BUILD_PROVIDER_DEFAULT:-ollama}
+      - POPPLER_PATH=${POPPLER_PATH:-}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - OLLAMA_INDEX_MODEL=${OLLAMA_INDEX_MODEL:-qwen2.5:3b}
+      - OLLAMA_NUM_CTX=${OLLAMA_NUM_CTX:-8192}
+      - OLLAMA_TIMEOUT_SECONDS=${OLLAMA_TIMEOUT_SECONDS:-180}
+      - OLLAMA_MAX_RETRIES=${OLLAMA_MAX_RETRIES:-2}
+      - OLLAMA_RETRY_DELAY_SECONDS=${OLLAMA_RETRY_DELAY_SECONDS:-5}
+      - NINE_ROUTER_BASE_URL=${NINE_ROUTER_BASE_URL:-http://host.docker.internal:20128/v1}
+      - NINE_ROUTER_API_KEY=${NINE_ROUTER_API_KEY:-}
+      - NINE_ROUTER_INDEX_MODEL=${NINE_ROUTER_INDEX_MODEL:-openrouter/gpt-oss-20b}
+      - NINE_ROUTER_TIMEOUT_SECONDS=${NINE_ROUTER_TIMEOUT_SECONDS:-60}
+      - NINE_ROUTER_MAX_RETRIES=${NINE_ROUTER_MAX_RETRIES:-2}
+      - NINE_ROUTER_RETRY_DELAY_SECONDS=${NINE_ROUTER_RETRY_DELAY_SECONDS:-3}
       - EMBEDDING_BACKEND=${EMBEDDING_BACKEND}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL}
       - EMBEDDING_DIM=${EMBEDDING_DIM}
       - EMBEDDING_DEVICE=${DOCKER_EMBEDDING_DEVICE:-cpu}
+      - EMBEDDING_MAX_TOKEN_SIZE=${EMBEDDING_MAX_TOKEN_SIZE:-384}
       - EMBEDDING_QUERY_INSTRUCTION=${EMBEDDING_QUERY_INSTRUCTION}
       - LLM_MODEL=${LLM_MODEL}
+      - LLM_MAX_TOKENS=${LLM_MAX_TOKENS:-1024}
+      - GEMINI_MAX_RETRIES=${GEMINI_MAX_RETRIES:-6}
+      - INDEX_MAX_OUTPUT_TOKENS=${INDEX_MAX_OUTPUT_TOKENS:-4096}
+      - LIGHTRAG_MAX_ASYNC=${LIGHTRAG_MAX_ASYNC:-1}
+      - LIGHTRAG_EMBEDDING_MAX_ASYNC=${LIGHTRAG_EMBEDDING_MAX_ASYNC:-2}
+      - LIGHTRAG_EMBEDDING_TIMEOUT=${LIGHTRAG_EMBEDDING_TIMEOUT:-180}
+      - LIGHTRAG_MAX_PARALLEL_INSERT=${LIGHTRAG_MAX_PARALLEL_INSERT:-1}
+      - HYBRID_ENABLE_RERANK=${HYBRID_ENABLE_RERANK:-true}
+      - HYBRID_MAX_HISTORY_MESSAGES=${HYBRID_MAX_HISTORY_MESSAGES:-8}
+      - HYBRID_TOP_K=${HYBRID_TOP_K:-5}
+      - HYBRID_CHUNK_TOP_K=${HYBRID_CHUNK_TOP_K:-10}
+      - HYBRID_ANCHOR_CHUNK_LIMIT=${HYBRID_ANCHOR_CHUNK_LIMIT:-3}
+      - HYBRID_BUCKET_CHUNK_LIMIT=${HYBRID_BUCKET_CHUNK_LIMIT:-2}
+      - JINA_RERANK_MODEL=${JINA_RERANK_MODEL:-jina-reranker-v2-base-multilingual}
+      - JINA_RERANK_BASE_URL=${JINA_RERANK_BASE_URL:-https://api.jina.ai/v1/rerank}
       - LIGHTRAG_WORKING_DIR=/app/backend/data
-      - SUMMARY_LANGUAGE=Vietnamese
-      - 'ENTITY_TYPES=["Văn bản pháp luật", "Điều khoản", "Cơ quan ban hành", "Đối tượng áp dụng", "Hành vi vi phạm", "Hình thức xử phạt", "Thời hạn", "Khái niệm pháp lý"]'
+      - LIGHTRAG_CHUNK_SIZE=${LIGHTRAG_CHUNK_SIZE:-300}
+      - LIGHTRAG_CHUNK_OVERLAP_SIZE=${LIGHTRAG_CHUNK_OVERLAP_SIZE:-50}
+      - SUMMARY_LANGUAGE=${SUMMARY_LANGUAGE:-Vietnamese}
+      - 'ENTITY_TYPES=["Văn bản pháp luật", "Điều khoản", "Cơ quan ban hành", "Đối tượng áp dụng", "Thời hạn", "Khái niệm pháp lý", "Phạm vi áp dụng", "Trách nhiệm", "Ngoại lệ", "Điều kiện áp dụng", "Chủ thể có thẩm quyền", "Phương tiện giao thông", "Người tham gia giao thông", "Hành vi bị cấm", "Yêu cầu an toàn", "Giấy phép / chứng chỉ", "Dịch vụ hỗ trợ giao thông", "Kết cấu hạ tầng giao thông", "Hình thức xử phạt", "Hành vi vi phạm"]'
       # Storage Backend
       - LIGHTRAG_KV_STORAGE=PGKVStorage
       - LIGHTRAG_VECTOR_STORAGE=PGVectorStorage
@@ -113,7 +178,6 @@ services:
       - EMBEDDING_BINDING=openai
       - EMBEDDING_BINDING_API_KEY=${OPENROUTER_API_KEY}
       - EMBEDDING_BINDING_HOST=https://openrouter.ai/api/v1
-      - EMBEDDING_DIM=${EMBEDDING_DIM}
     command: lightrag-server --host 0.0.0.0 --port 8001 --working-dir /app/backend/data
     depends_on:
       db:

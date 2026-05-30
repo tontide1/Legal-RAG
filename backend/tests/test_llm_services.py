@@ -1,6 +1,7 @@
 from pathlib import Path
 import sys
 import asyncio
+import types
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -64,3 +65,95 @@ def test_jina_rerank_model_func_forwards_configured_settings(monkeypatch):
         "model": "custom-model",
         "base_url": "https://example.com/rerank",
     }
+
+
+def test_validate_nine_router_connection_accepts_reasoning_only_response(monkeypatch):
+    class FakeCompletions:
+        async def create(self, **kwargs):
+            return types.SimpleNamespace(
+                choices=[
+                    types.SimpleNamespace(
+                        message=types.SimpleNamespace(
+                            content="",
+                            model_extra={"reasoning_content": "OK"},
+                        )
+                    )
+                ]
+            )
+
+    class FakeChat:
+        completions = FakeCompletions()
+
+    class FakeClient:
+        chat = FakeChat()
+
+    monkeypatch.setattr(llm_services.settings, "NINE_ROUTER_BASE_URL", "https://router.example")
+    monkeypatch.setattr(llm_services.settings, "NINE_ROUTER_INDEX_MODEL", "nvidia/minimaxai/minimax-m2.7")
+    monkeypatch.setattr(llm_services.settings, "NINE_ROUTER_TIMEOUT_SECONDS", 60)
+    monkeypatch.setattr(llm_services, "get_nine_router_client", lambda: FakeClient())
+
+    asyncio.run(llm_services.validate_nine_router_connection())
+
+
+def test_nine_router_index_llm_func_returns_reasoning_content_when_content_is_empty(monkeypatch):
+    class FakeCompletions:
+        async def create(self, **kwargs):
+            return types.SimpleNamespace(
+                choices=[
+                    types.SimpleNamespace(
+                        message=types.SimpleNamespace(
+                            content=None,
+                            model_extra={"reasoning_content": "EXTRACTED"},
+                        )
+                    )
+                ]
+            )
+
+    class FakeChat:
+        completions = FakeCompletions()
+
+    class FakeClient:
+        chat = FakeChat()
+
+    monkeypatch.setattr(llm_services.settings, "NINE_ROUTER_INDEX_MODEL", "nvidia/minimaxai/minimax-m2.7")
+    monkeypatch.setattr(llm_services.settings, "NINE_ROUTER_TIMEOUT_SECONDS", 60)
+    monkeypatch.setattr(llm_services.settings, "NINE_ROUTER_MAX_RETRIES", 1)
+    monkeypatch.setattr(llm_services.settings, "LLM_MAX_TOKENS", 1024)
+    monkeypatch.setattr(llm_services, "get_nine_router_client", lambda: FakeClient())
+
+    result = asyncio.run(llm_services.nine_router_index_llm_func("Prompt"))
+
+    assert result == "EXTRACTED"
+
+
+def test_nine_router_index_llm_func_caps_max_tokens(monkeypatch):
+    captured = {}
+
+    class FakeCompletions:
+        async def create(self, **kwargs):
+            captured.update(kwargs)
+            return types.SimpleNamespace(
+                choices=[
+                    types.SimpleNamespace(
+                        message=types.SimpleNamespace(
+                            content="EXTRACTED",
+                            model_extra={},
+                        )
+                    )
+                ]
+            )
+
+    class FakeChat:
+        completions = FakeCompletions()
+
+    class FakeClient:
+        chat = FakeChat()
+
+    monkeypatch.setattr(llm_services.settings, "NINE_ROUTER_INDEX_MODEL", "nvidia/minimaxai/minimax-m2.7")
+    monkeypatch.setattr(llm_services.settings, "LLM_MAX_TOKENS", 128000)
+    monkeypatch.setattr(llm_services, "get_nine_router_client", lambda: FakeClient())
+
+    result = asyncio.run(llm_services.nine_router_index_llm_func("Prompt"))
+
+    assert result == "EXTRACTED"
+    assert captured["max_tokens"] == 4096

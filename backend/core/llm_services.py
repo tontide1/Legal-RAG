@@ -59,6 +59,29 @@ def get_nine_router_client():
     return _nine_router_client
 
 
+def _extract_nine_router_message_text(message) -> str:
+    if message is None:
+        return ""
+
+    for attr_name in ("content", "reasoning_content", "reasoning"):
+        value = getattr(message, attr_name, None)
+        if value is not None:
+            text = str(value).strip()
+            if text:
+                return text
+
+    model_extra = getattr(message, "model_extra", None)
+    if isinstance(model_extra, dict):
+        for key in ("reasoning_content", "reasoning"):
+            value = model_extra.get(key)
+            if value is not None:
+                text = str(value).strip()
+                if text:
+                    return text
+
+    return ""
+
+
 def hybrid_rerank_available() -> bool:
     return bool(settings.HYBRID_ENABLE_RERANK and (settings.JINA_API_KEY or "").strip())
 
@@ -235,6 +258,15 @@ def _is_gemini_rate_limit_error(error: Exception) -> bool:
     return "429" in message or "RESOURCE_EXHAUSTED" in message
 
 
+def _get_index_max_output_tokens(requested_max_tokens: int | None) -> int:
+    index_max_output_tokens = getattr(settings, "INDEX_MAX_OUTPUT_TOKENS", 4096)
+
+    if requested_max_tokens is None:
+        return min(settings.LLM_MAX_TOKENS, index_max_output_tokens)
+
+    return min(int(requested_max_tokens), settings.LLM_MAX_TOKENS, index_max_output_tokens)
+
+
 async def _gemini_generate_with_retry(client: genai.Client, **request_kwargs):
     last_error: Exception | None = None
 
@@ -326,9 +358,7 @@ async def ollama_index_llm_func(
         history=history,
     )
     requested_max_tokens = kwargs.get("max_tokens")
-    max_output_tokens = settings.LLM_MAX_TOKENS if requested_max_tokens is None else min(
-        int(requested_max_tokens), settings.LLM_MAX_TOKENS
-    )
+    max_output_tokens = _get_index_max_output_tokens(requested_max_tokens)
 
     last_error: Exception | None = None
     retry_prompt = request_text
@@ -403,18 +433,19 @@ async def validate_nine_router_connection() -> None:
         )
     except Exception as error:
         raise RuntimeError(
-            f"9router local proxy is not reachable at {settings.NINE_ROUTER_BASE_URL}: {error}"
+            f"9router local proxy is not reachable at {settings.NINE_ROUTER_BASE_URL} "
+            f"for model {settings.NINE_ROUTER_INDEX_MODEL}: {error}"
         ) from error
 
-    response_text = (
-        response.choices[0].message.content
-        if response.choices and response.choices[0].message
-        else ""
-    )
-    if not str(response_text).strip():
+    response_text = ""
+    if response.choices:
+        response_text = _extract_nine_router_message_text(response.choices[0].message)
+
+    if not response_text:
         raise RuntimeError(
             f"9router local proxy returned an empty validation response at "
-            f"{settings.NINE_ROUTER_BASE_URL}"
+            f"{settings.NINE_ROUTER_BASE_URL} for model {settings.NINE_ROUTER_INDEX_MODEL}. "
+            f"Check that NINE_ROUTER_INDEX_MODEL matches a model the proxy actually serves."
         )
 
 
@@ -431,9 +462,7 @@ async def nine_router_index_llm_func(
         history=history,
     )
     requested_max_tokens = kwargs.get("max_tokens")
-    max_output_tokens = settings.LLM_MAX_TOKENS if requested_max_tokens is None else min(
-        int(requested_max_tokens), settings.LLM_MAX_TOKENS
-    )
+    max_output_tokens = _get_index_max_output_tokens(requested_max_tokens)
 
     last_error: Exception | None = None
     retry_messages = messages
@@ -450,8 +479,8 @@ async def nine_router_index_llm_func(
                 timeout=settings.NINE_ROUTER_TIMEOUT_SECONDS,
             )
             response_text = ""
-            if response.choices and response.choices[0].message:
-                response_text = str(response.choices[0].message.content or "").strip()
+            if response.choices:
+                response_text = _extract_nine_router_message_text(response.choices[0].message)
 
             if response_text and _looks_malformed_extraction_output(response_text):
                 print(
@@ -488,10 +517,13 @@ async def nine_router_index_llm_func(
 
     if last_error is not None:
         raise RuntimeError(
-            "9router indexing request failed after retries. "
+            "9router indexing request failed after retries "
+            f"for model {settings.NINE_ROUTER_INDEX_MODEL}. "
             f"Last error: {last_error}"
         ) from last_error
-    raise RuntimeError("9router indexing request failed without a response.")
+    raise RuntimeError(
+        f"9router indexing request failed without a response for model {settings.NINE_ROUTER_INDEX_MODEL}."
+    )
 
 
 async def jina_rerank_model_func(

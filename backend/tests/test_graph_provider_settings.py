@@ -1,7 +1,7 @@
-from pathlib import Path
 import asyncio
 import sys
 import types
+from pathlib import Path
 
 import pytest
 
@@ -13,14 +13,18 @@ GRAPH_PROVIDER_KEY = "graph_build_provider"
 
 class FakeConnection:
     def __init__(self, initial_value=None):
-        self.values = {GRAPH_PROVIDER_KEY: initial_value} if initial_value is not None else {}
+        self.values = (
+            {GRAPH_PROVIDER_KEY: initial_value} if initial_value is not None else {}
+        )
         self.execute_calls = []
         self.fetchval_calls = []
 
     async def execute(self, sql, *args):
         self.execute_calls.append((sql, args))
         statement = sql.strip().upper()
-        if statement.startswith("INSERT INTO APP_SETTINGS") or statement.startswith("UPDATE APP_SETTINGS"):
+        if statement.startswith("INSERT INTO APP_SETTINGS") or statement.startswith(
+            "UPDATE APP_SETTINGS"
+        ):
             key, value = args
             self.values[key] = value
         return "OK"
@@ -73,7 +77,9 @@ def app_settings_module(monkeypatch):
     return app_settings
 
 
-def test_get_graph_build_provider_bootstraps_default_when_missing(app_settings_module, monkeypatch):
+def test_get_graph_build_provider_bootstraps_default_when_missing(
+    app_settings_module, monkeypatch
+):
     connection = FakeConnection()
     pool = FakePool(connection)
 
@@ -93,7 +99,9 @@ def test_get_graph_build_provider_bootstraps_default_when_missing(app_settings_m
     assert "CREATE TABLE IF NOT EXISTS app_settings" in connection.execute_calls[0][0]
 
 
-def test_set_graph_build_provider_rejects_unsupported_values(app_settings_module, monkeypatch):
+def test_set_graph_build_provider_rejects_unsupported_values(
+    app_settings_module, monkeypatch
+):
     connection = FakeConnection("ollama")
     pool = FakePool(connection)
 
@@ -111,7 +119,9 @@ def test_set_graph_build_provider_rejects_unsupported_values(app_settings_module
     assert connection.execute_calls == []
 
 
-def test_set_graph_build_provider_validates_9router_before_persisting(app_settings_module, monkeypatch):
+def test_set_graph_build_provider_validates_9router_before_persisting(
+    app_settings_module, monkeypatch
+):
     connection = FakeConnection("ollama")
     pool = FakePool(connection)
     events = []
@@ -123,7 +133,9 @@ def test_set_graph_build_provider_validates_9router_before_persisting(app_settin
         events.append("validated")
 
     monkeypatch.setattr(app_settings_module.asyncpg, "create_pool", fake_create_pool)
-    monkeypatch.setattr(app_settings_module, "validate_9router_connection", fake_validate)
+    monkeypatch.setattr(
+        app_settings_module, "validate_9router_connection", fake_validate
+    )
 
     service = app_settings_module.AppSettingsService()
 
@@ -147,7 +159,9 @@ def test_set_graph_build_provider_keeps_existing_value_when_9router_validation_f
         raise RuntimeError("router unreachable")
 
     monkeypatch.setattr(app_settings_module.asyncpg, "create_pool", fake_create_pool)
-    monkeypatch.setattr(app_settings_module, "validate_9router_connection", fake_validate)
+    monkeypatch.setattr(
+        app_settings_module, "validate_9router_connection", fake_validate
+    )
 
     service = app_settings_module.AppSettingsService()
 
@@ -156,6 +170,41 @@ def test_set_graph_build_provider_keeps_existing_value_when_9router_validation_f
 
     assert connection.values[GRAPH_PROVIDER_KEY] == "ollama"
     assert connection.execute_calls == []
+
+
+def test_validate_9router_connection_accepts_reasoning_only_response(
+    app_settings_module, monkeypatch
+):
+    class FakeCompletions:
+        async def create(self, **kwargs):
+            return types.SimpleNamespace(
+                choices=[
+                    types.SimpleNamespace(
+                        message=types.SimpleNamespace(
+                            content="",
+                            model_extra={"reasoning_content": "OK"},
+                        )
+                    )
+                ]
+            )
+
+    class FakeChat:
+        completions = FakeCompletions()
+
+    class FakeClient:
+        chat = FakeChat()
+
+    monkeypatch.setattr(
+        app_settings_module, "_get_nine_router_client", lambda: FakeClient()
+    )
+    monkeypatch.setattr(
+        app_settings_module.settings,
+        "NINE_ROUTER_INDEX_MODEL",
+        "openrouter/gpt-oss-20b",
+        raising=False,
+    )
+
+    asyncio.run(app_settings_module.validate_9router_connection())
 
 
 def test_lifespan_initializes_and_closes_settings_service(monkeypatch):
@@ -195,8 +244,14 @@ def test_lifespan_initializes_and_closes_settings_service(monkeypatch):
         async def fake_close_graph_provider_settings():
             events.append("settings.close")
 
-        monkeypatch.setattr(main, "initialize_graph_provider_settings", fake_initialize_graph_provider_settings)
-        monkeypatch.setattr(main, "close_graph_provider_settings", fake_close_graph_provider_settings)
+        monkeypatch.setattr(
+            main,
+            "initialize_graph_provider_settings",
+            fake_initialize_graph_provider_settings,
+        )
+        monkeypatch.setattr(
+            main, "close_graph_provider_settings", fake_close_graph_provider_settings
+        )
         monkeypatch.setattr(main, "RAGEngine", FakeRAGEngine)
 
         async def run_lifespan():

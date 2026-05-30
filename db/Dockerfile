@@ -3,6 +3,7 @@ FROM postgres:16-bookworm
 # Install dependencies for building Apache AGE and pgvector
 RUN apt-get update -o Acquire::Retries=5 && apt-get install -y --fix-missing --no-install-recommends \
   build-essential \
+  ca-certificates \
   git \
   postgresql-server-dev-16 \
   postgresql-16-pgvector \

@@ -1,29 +1,30 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
+import json
 from pathlib import Path
 from typing import Optional
-import json
+
 from pydantic import field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/law_assistant"
     GRAPH_BUILD_PROVIDER_DEFAULT: str = "ollama"
     DEFAULT_GRAPH_BUILD_PROVIDER: str = GRAPH_BUILD_PROVIDER_DEFAULT
-    
+
     # Postgres individual components for LightRAG
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
     POSTGRES_USER: str = "postgres"
     POSTGRES_PASSWORD: str = "postgres"
     POSTGRES_DATABASE: str = "law_assistant"
-    
+
     REDIS_URL: Optional[str] = None
-    
+
     OPENROUTER_API_KEY: Optional[str] = None
     GOOGLE_API_KEY: Optional[str] = None
     JINA_API_KEY: Optional[str] = None
-    POPPLER_PATH: Optional[str] = None
     OLLAMA_BASE_URL: str = "http://host.docker.internal:11434"
     OLLAMA_INDEX_MODEL: str = "qwen2.5:3b"
     OLLAMA_NUM_CTX: int = 8192
@@ -33,11 +34,11 @@ class Settings(BaseSettings):
 
     NINE_ROUTER_BASE_URL: str = "http://host.docker.internal:20128/v1"
     NINE_ROUTER_API_KEY: Optional[str] = None
-    NINE_ROUTER_INDEX_MODEL: str = "qwen2.5:3b"
-    NINE_ROUTER_TIMEOUT_SECONDS: int = 180
+    NINE_ROUTER_INDEX_MODEL: str = "openrouter/gpt-oss-20b"
+    NINE_ROUTER_TIMEOUT_SECONDS: int = 60
     NINE_ROUTER_MAX_RETRIES: int = 2
-    NINE_ROUTER_RETRY_DELAY_SECONDS: int = 5
-    
+    NINE_ROUTER_RETRY_DELAY_SECONDS: int = 3
+
     EMBEDDING_BACKEND: str = "sentence_transformers"
     EMBEDDING_MODEL: str = "huyydangg/DEk21_hcmute_embedding"
     EMBEDDING_DIM: int = 768
@@ -47,24 +48,26 @@ class Settings(BaseSettings):
         "Instruct: Given a Vietnamese legal question, retrieve relevant legal passages "
         "that answer the question\nQuery: "
     )
-    LLM_MODEL: str = "gemini-3.1-flash-lite"
+    # LLM_MODEL: str = "gemini-3.1-flash-lite"
+    LLM_MODEL: str = "gemma-4-26b-a4b-it"
     LLM_MAX_TOKENS: int = 1024
+    INDEX_MAX_OUTPUT_TOKENS: int = 4096
     LIGHTRAG_MAX_ASYNC: int = 1
     LIGHTRAG_EMBEDDING_MAX_ASYNC: int = 2
     LIGHTRAG_EMBEDDING_TIMEOUT: int = 180
     LIGHTRAG_MAX_PARALLEL_INSERT: int = 1
-    LIGHTRAG_CHUNK_SIZE: int = 600
-    LIGHTRAG_CHUNK_OVERLAP_SIZE: int = 100
+    LIGHTRAG_CHUNK_SIZE: int = 300
+    LIGHTRAG_CHUNK_OVERLAP_SIZE: int = 50
     GEMINI_MAX_RETRIES: int = 6
     HYBRID_MAX_HISTORY_MESSAGES: int = 8
-    HYBRID_TOP_K: int = 20
-    HYBRID_CHUNK_TOP_K: int = 12
+    HYBRID_TOP_K: int = 5
+    HYBRID_CHUNK_TOP_K: int = 10
     HYBRID_ANCHOR_CHUNK_LIMIT: int = 3
     HYBRID_BUCKET_CHUNK_LIMIT: int = 2
     JINA_RERANK_MODEL: str = "jina-reranker-v2-base-multilingual"
     JINA_RERANK_BASE_URL: str = "https://api.jina.ai/v1/rerank"
     HYBRID_ENABLE_RERANK: bool = True
-    
+
     SUMMARY_LANGUAGE: str = "Vietnamese"
     ENTITY_TYPES: list[str] = [
         "Văn bản pháp luật",
@@ -88,7 +91,7 @@ class Settings(BaseSettings):
         "Hình thức xử phạt",
         "Hành vi vi phạm",
     ]
-    
+
     LIGHTRAG_WORKING_DIR: str = "./backend/data"
 
     # Path to Poppler bin directory (required on Windows, e.g. "poppler-24.11.0\Library\bin")
@@ -115,5 +118,6 @@ class Settings(BaseSettings):
         return v
 
     model_config = SettingsConfigDict(env_file=BASE_DIR / ".env", extra="ignore")
+
 
 settings = Settings()

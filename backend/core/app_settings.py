@@ -6,6 +6,7 @@ import openai
 import asyncpg
 
 from backend.config import settings
+from backend.core.llm_services import _extract_nine_router_message_text
 
 
 GRAPH_BUILD_PROVIDER_KEY = "graph_build_provider"
@@ -72,18 +73,19 @@ async def validate_9router_connection() -> None:
         )
     except Exception as error:
         raise RuntimeError(
-            f"9router local proxy is not reachable at {settings.NINE_ROUTER_BASE_URL}: {error}"
+            f"9router local proxy is not reachable at {settings.NINE_ROUTER_BASE_URL} "
+            f"for model {settings.NINE_ROUTER_INDEX_MODEL}: {error}"
         ) from error
 
-    response_text = (
-        response.choices[0].message.content
-        if response.choices and response.choices[0].message
-        else ""
-    )
-    if not str(response_text).strip():
+    response_text = ""
+    if response.choices:
+        response_text = _extract_nine_router_message_text(response.choices[0].message)
+
+    if not response_text:
         raise RuntimeError(
             f"9router local proxy returned an empty validation response at "
-            f"{settings.NINE_ROUTER_BASE_URL}"
+            f"{settings.NINE_ROUTER_BASE_URL} for model {settings.NINE_ROUTER_INDEX_MODEL}. "
+            f"Check that NINE_ROUTER_INDEX_MODEL matches a model the proxy actually serves."
         )
 
 

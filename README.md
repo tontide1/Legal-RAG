@@ -79,6 +79,8 @@ EMBEDDING_DIM=768
 EMBEDDING_DEVICE=cuda
 ```
 
+The full `SUMMARY_LANGUAGE`, `ENTITY_TYPES`, and Docker-specific overrides such as `DOCKER_EMBEDDING_DEVICE=cpu` live in `.env.example` and are mirrored in Docker Compose.
+
 ### Running the Application
 
 Start the full app with Docker:
@@ -91,7 +93,7 @@ The application will be available at:
 
 - **Main UI**: `http://localhost:3000`
 - **Backend API**: `http://localhost:8000`
-- **Graph Visualization**: `http://localhost:8001/webui`
+- **Graph Visualization**: `http://localhost:8001`
 
 ### Run With Docker Logs
 
@@ -125,7 +127,7 @@ docker compose logs -f rag-ui
 
 The system consists of three main services:
 
-- `db`: Custom Postgres image with vector and graph extensions.
+- `db`: Custom Postgres image built from `db/Dockerfile` with vector and graph extensions.
 - `backend`: Handles chat, PDF parsing, document indexing, and global graph-provider settings.
 - `rag-ui`: Provides the Knowledge Graph visualization interface.
 
@@ -133,8 +135,8 @@ The system consists of three main services:
 
 The RAG engine is optimized for Vietnamese:
 
-- `SUMMARY_LANGUAGE`: Set to `Vietnamese`.
-- `ENTITY_TYPES`: Custom legal taxonomy including _Hành vi vi phạm, Hình thức xử phạt, Khái niệm pháp lý_.
+- `SUMMARY_LANGUAGE`: Defaults to `Vietnamese` in `backend/config.py` and Docker Compose.
+- `ENTITY_TYPES`: Full legal taxonomy is defined in `backend/config.py`, mirrored in `.env.example`, and must stay aligned with Docker Compose. Changing it requires re-indexing the uploaded legal corpus.
 
 ## 🌍 Embedding Setup
 

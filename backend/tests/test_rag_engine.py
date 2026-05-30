@@ -72,7 +72,7 @@ def test_initialize_only_builds_query_instance(monkeypatch):
         LLM_MAX_TOKENS=1024,
         OLLAMA_INDEX_MODEL="qwen2.5:3b",
         OLLAMA_NUM_CTX=32768,
-        NINE_ROUTER_INDEX_MODEL="qwen2.5:3b",
+        NINE_ROUTER_INDEX_MODEL="nvidia/minimaxai/minimax-m2.7",
         SUMMARY_LANGUAGE="vi",
         ENTITY_TYPES=app_settings.ENTITY_TYPES,
     ))
@@ -136,7 +136,7 @@ def test_get_ingest_instance_is_provider_aware_and_cached(monkeypatch):
         LLM_MAX_TOKENS=1024,
         OLLAMA_INDEX_MODEL="qwen2.5:3b",
         OLLAMA_NUM_CTX=32768,
-        NINE_ROUTER_INDEX_MODEL="qwen2.5:3b",
+        NINE_ROUTER_INDEX_MODEL="nvidia/minimaxai/minimax-m2.7",
         SUMMARY_LANGUAGE="vi",
         ENTITY_TYPES=app_settings.ENTITY_TYPES,
     ))
@@ -170,7 +170,7 @@ def test_get_ingest_instance_is_provider_aware_and_cached(monkeypatch):
     assert ollama_kwargs.get("rerank_model_func") is None
 
     assert router_kwargs["llm_model_func"] is llm_services.nine_router_index_llm_func
-    assert router_kwargs["llm_model_name"] == "qwen2.5:3b"
+    assert router_kwargs["llm_model_name"] == "nvidia/minimaxai/minimax-m2.7"
     assert router_kwargs["llm_model_kwargs"] == {}
     assert router_kwargs.get("rerank_model_func") is None
 
@@ -222,7 +222,7 @@ def test_get_ingest_instance_retries_after_initialize_failure(monkeypatch):
         LLM_MAX_TOKENS=1024,
         OLLAMA_INDEX_MODEL="qwen2.5:3b",
         OLLAMA_NUM_CTX=32768,
-        NINE_ROUTER_INDEX_MODEL="qwen2.5:3b",
+        NINE_ROUTER_INDEX_MODEL="nvidia/minimaxai/minimax-m2.7",
         SUMMARY_LANGUAGE="vi",
         ENTITY_TYPES=app_settings.ENTITY_TYPES,
     ))
