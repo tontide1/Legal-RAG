@@ -95,6 +95,25 @@ async def _find_existing_document_status(rag, filename: str) -> str | None:
     return None
 
 
+async def _run_background_indexing(
+    rag,
+    normalized_content: str,
+    filename: str,
+) -> None:
+    await rag.ainsert(
+        normalized_content,
+        file_paths=[filename],
+        split_by_character="\n\n",
+    )
+
+
+def _log_background_indexing_result(task: asyncio.Task) -> None:
+    try:
+        task.result()
+    except Exception as error:
+        print(f"ERROR: Background indexing failed: {error}")
+
+
 def _build_query_param(request: ChatRequest, mode: str, stream: bool = False):
     from lightrag import QueryParam
 
@@ -340,18 +359,22 @@ async def upload_file(file: UploadFile = File(...)):
 
         legal_chunk_count = normalized_content.count("\n\n") + 1
         print(f"[INFO] {filename}: normalized for LightRAG with ~{legal_chunk_count} legal sections.")
-        await rag.ainsert(
-            normalized_content,
-            file_paths=[filename],
-            split_by_character="\n\n",
+        background_task = asyncio.create_task(
+            _run_background_indexing(
+                rag,
+                normalized_content,
+                filename,
+            )
         )
+        background_task.add_done_callback(_log_background_indexing_result)
             
         return UploadResponse(
             filename=filename,
             status="success",
             message=(
-                f"File indexed with the configured embeddings via graph provider '{provider}' "
-                f"({len(content)} characters, ~{legal_chunk_count} legal sections)"
+                f"File accepted for indexing via graph provider '{provider}' and is now "
+                f"processing in background ({len(content)} characters, "
+                f"~{legal_chunk_count} legal sections)"
             )
         )
     except HTTPException:

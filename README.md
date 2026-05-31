@@ -8,7 +8,7 @@ An advanced legal document assistant powered by **LightRAG**, localized for Viet
 
 - **Vietnamese Legal Localization**: Specialized entity extraction for laws (_Điều khoản, Văn bản pháp luật, Cơ quan ban hành_).
 - **Docling PDF Parsing Without OCR**: Uses **Docling** to extract embedded text from legal PDFs and saves extracted `.txt` artifacts for indexing. Scanned/image-only PDFs are rejected because OCR is disabled by design.
-- **Interactive Knowledge Graph**: Explore legal relationships via the integrated **LightRAG Graph UI** on port 8001.
+- **Interactive Knowledge Graph**: Explore legal relationships via the optional **LightRAG Graph UI** on port 8001.
 
   ![KG Screenshot 1](docs/KGScreenshot1.png)
   ![KG Screenshot 2](docs/KGScreenshot2.png)
@@ -93,7 +93,7 @@ The application will be available at:
 
 - **Main UI**: `http://localhost:3000`
 - **Backend API**: `http://localhost:8000`
-- **Graph Visualization**: `http://localhost:8001`
+- **Graph Visualization**: `http://localhost:8001` when the optional `rag-ui` profile is started
 
 ### Run With Docker Logs
 
@@ -123,13 +123,28 @@ docker compose --profile rag-ui up -d rag-ui
 docker compose logs -f rag-ui
 ```
 
+> [!IMPORTANT]
+> The repository's default ingestion path is the main app on `http://localhost:3000`.
+> It uses a local SentenceTransformer embedding model (`huyydangg/DEk21_hcmute_embedding`)
+> inside the backend container. The optional `rag-ui` service is a separate
+> `lightrag-server` process and cannot use that local model through
+> `EMBEDDING_BINDING=openai` out of the box. This repository patches `rag-ui`
+> at startup so its OpenAI-style embedding path is transparently backed by the
+> same local SentenceTransformer model instead of a remote embedding API.
+
+> [!IMPORTANT]
+> If you intentionally override `RAG_UI_EMBEDDING_*` to a server-backed embedding
+> backend later, remember that `rag-ui` and the main backend will no longer share
+> the same embedding space unless you reconfigure both sides to match.
+
 ## 🧠 Architecture
 
 The system consists of three main services:
 
 - `db`: Custom Postgres image built from `db/Dockerfile` with vector and graph extensions.
 - `backend`: Handles chat, PDF parsing, document indexing, and global graph-provider settings.
-- `rag-ui`: Provides the Knowledge Graph visualization interface.
+- `rag-ui`: Provides the optional Knowledge Graph visualization interface and is
+  not the default indexing path for this repository.
 
 ## 🇻🇳 Localization Details
 

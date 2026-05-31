@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: Optional[str] = None
     JINA_API_KEY: Optional[str] = None
     OLLAMA_BASE_URL: str = "http://host.docker.internal:11434"
-    OLLAMA_INDEX_MODEL: str = "qwen2.5:3b"
+    OLLAMA_INDEX_MODEL: str = "qwen3:4b"
     OLLAMA_NUM_CTX: int = 8192
     OLLAMA_TIMEOUT_SECONDS: int = 180
     OLLAMA_MAX_RETRIES: int = 2

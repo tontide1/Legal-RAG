@@ -112,6 +112,7 @@ def test_upload_cleans_temp_file_on_failure(tmp_path, monkeypatch):
     settings.LIGHTRAG_WORKING_DIR = str(tmp_path)
 
     file = DummyUploadFile("sample.txt", b"xin chao")
+    scheduled_coroutines = []
 
     class FakeRAG:
         def __init__(self):
@@ -132,13 +133,26 @@ def test_upload_cleans_temp_file_on_failure(tmp_path, monkeypatch):
         assert provider == "ollama"
         return FakeRAG()
 
+    def fake_create_task(coro):
+        scheduled_coroutines.append(coro)
+
+        class DummyTask:
+            def add_done_callback(self, callback):
+                self.callback = callback
+
+        return DummyTask()
+
     monkeypatch.setattr(routes, "get_ingest_rag_engine", fake_get_ingest_rag_engine)
+    monkeypatch.setattr(routes.asyncio, "create_task", fake_create_task)
 
-    with pytest.raises(Exception) as exc_info:
-        asyncio.run(routes.upload_file(file))
+    response = asyncio.run(routes.upload_file(file))
 
-    assert "Failed to index file" in str(exc_info.value)
+    assert response.status == "success"
+    assert len(scheduled_coroutines) == 1
     assert not (tmp_path / "sample.txt").exists()
+
+    with pytest.raises(RuntimeError, match="insert failed"):
+        asyncio.run(scheduled_coroutines[0])
 
 
 def test_upload_normalizes_and_uses_lightrag_split(tmp_path, monkeypatch):
@@ -153,6 +167,7 @@ def test_upload_normalizes_and_uses_lightrag_split(tmp_path, monkeypatch):
     settings.LIGHTRAG_WORKING_DIR = str(tmp_path)
 
     file = DummyUploadFile("sample.txt", b"xin chao")
+    scheduled_coroutines = []
 
     class FakeRAG:
         def __init__(self):
@@ -175,15 +190,93 @@ def test_upload_normalizes_and_uses_lightrag_split(tmp_path, monkeypatch):
         assert provider == "9router"
         return fake_rag
 
+    def fake_create_task(coro):
+        scheduled_coroutines.append(coro)
+
+        class DummyTask:
+            def add_done_callback(self, callback):
+                self.callback = callback
+
+        return DummyTask()
+
     monkeypatch.setattr(routes, "get_ingest_rag_engine", fake_get_ingest_rag_engine)
+    monkeypatch.setattr(routes.asyncio, "create_task", fake_create_task)
 
     response = asyncio.run(routes.upload_file(file))
 
     assert response.status == "success"
     assert "9router" in response.message
+    assert len(scheduled_coroutines) == 1
+
+    asyncio.run(scheduled_coroutines[0])
+
     assert fake_rag.calls[0][0][0] == "doan 1\n\ndoan 2"
     assert fake_rag.calls[0][1]["split_by_character"] == "\n\n"
     assert fake_rag.calls[0][1]["file_paths"] == ["sample.txt"]
+
+
+def test_upload_schedules_background_indexing_for_accepted_file(tmp_path, monkeypatch):
+    from backend.config import settings
+
+    import fastapi.dependencies.utils as fastapi_utils
+
+    monkeypatch.setattr(fastapi_utils, "ensure_multipart_is_installed", lambda: None)
+
+    import backend.api.routes as routes
+
+    settings.LIGHTRAG_WORKING_DIR = str(tmp_path)
+
+    file = DummyUploadFile("sample.txt", b"xin chao")
+    events = []
+
+    class FakeRAG:
+        def __init__(self):
+            self.doc_status = FakeDocStatus()
+
+        async def ainsert(self, *args, **kwargs):
+            events.append(("ainsert", args, kwargs))
+
+    class FakeProcessor:
+        async def extract_text(self, file_path):
+            events.append(("extract_text", file_path))
+            return "doan 1\n\ndoan 2"
+
+    fake_rag = FakeRAG()
+    scheduled_coroutines = []
+
+    monkeypatch.setattr(routes, "document_processor", FakeProcessor())
+    monkeypatch.setattr(
+        routes,
+        "get_graph_provider_settings_service",
+        lambda: FakeGraphProviderSettingsService("9router"),
+    )
+
+    async def fake_get_ingest_rag_engine(provider: str = "ollama"):
+        assert provider == "9router"
+        return fake_rag
+
+    def fake_create_task(coro):
+        scheduled_coroutines.append(coro)
+
+        class DummyTask:
+            def add_done_callback(self, callback):
+                self.callback = callback
+
+        return DummyTask()
+
+    monkeypatch.setattr(routes, "get_ingest_rag_engine", fake_get_ingest_rag_engine)
+    monkeypatch.setattr(routes.asyncio, "create_task", fake_create_task)
+
+    response = asyncio.run(routes.upload_file(file))
+
+    assert response.status == "success"
+    assert "processing in background" in response.message
+    assert len(scheduled_coroutines) == 1
+    assert [event[0] for event in events] == ["extract_text"]
+
+    asyncio.run(scheduled_coroutines[0])
+
+    assert [event[0] for event in events] == ["extract_text", "ainsert"]
 
 
 def test_upload_returns_conflict_for_existing_document(tmp_path, monkeypatch):

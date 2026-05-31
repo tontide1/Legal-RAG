@@ -70,7 +70,7 @@ def test_initialize_only_builds_query_instance(monkeypatch):
         EMBEDDING_MODEL="fake-model",
         LLM_MODEL="gemini-3.1-flash-lite",
         LLM_MAX_TOKENS=1024,
-        OLLAMA_INDEX_MODEL="qwen2.5:3b",
+        OLLAMA_INDEX_MODEL="qwen3:4b",
         OLLAMA_NUM_CTX=32768,
         NINE_ROUTER_INDEX_MODEL="nvidia/minimaxai/minimax-m2.7",
         SUMMARY_LANGUAGE="vi",
@@ -134,7 +134,7 @@ def test_get_ingest_instance_is_provider_aware_and_cached(monkeypatch):
         EMBEDDING_MODEL="fake-model",
         LLM_MODEL="gemini-3.1-flash-lite",
         LLM_MAX_TOKENS=1024,
-        OLLAMA_INDEX_MODEL="qwen2.5:3b",
+        OLLAMA_INDEX_MODEL="qwen3:4b",
         OLLAMA_NUM_CTX=32768,
         NINE_ROUTER_INDEX_MODEL="nvidia/minimaxai/minimax-m2.7",
         SUMMARY_LANGUAGE="vi",
@@ -165,7 +165,7 @@ def test_get_ingest_instance_is_provider_aware_and_cached(monkeypatch):
     assert query_kwargs["rerank_model_func"] is llm_services.jina_rerank_model_func
 
     assert ollama_kwargs["llm_model_func"] is llm_services.ollama_index_llm_func
-    assert ollama_kwargs["llm_model_name"] == "qwen2.5:3b"
+    assert ollama_kwargs["llm_model_name"] == "qwen3:4b"
     assert ollama_kwargs["llm_model_kwargs"] == {"options": {"num_ctx": 32768}}
     assert ollama_kwargs.get("rerank_model_func") is None
 
@@ -220,7 +220,7 @@ def test_get_ingest_instance_retries_after_initialize_failure(monkeypatch):
         EMBEDDING_MODEL="fake-model",
         LLM_MODEL="gemini-3.1-flash-lite",
         LLM_MAX_TOKENS=1024,
-        OLLAMA_INDEX_MODEL="qwen2.5:3b",
+        OLLAMA_INDEX_MODEL="qwen3:4b",
         OLLAMA_NUM_CTX=32768,
         NINE_ROUTER_INDEX_MODEL="nvidia/minimaxai/minimax-m2.7",
         SUMMARY_LANGUAGE="vi",
